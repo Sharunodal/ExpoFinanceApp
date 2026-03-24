@@ -10,6 +10,12 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="filter"
+        options={{
+          title: "Filter",
+        }}
+      />
+      <Tabs.Screen
         name="summary"
         options={{
           title: "Summary",
