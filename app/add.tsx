@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useExpenses } from "../context/Expense";
 import {
+  AppCurrency,
   ExpenseCategory,
   ExpenseEntry,
   ExpenseTag,
@@ -32,8 +33,14 @@ const availableTags: ExpenseTag[] = [
   "work",
 ];
 
+const currencies: AppCurrency[] = ["JPY", "EUR"];
+
 function getTodayDateString() {
-  return new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatCategoryName(category: string) {
@@ -42,15 +49,45 @@ function formatCategoryName(category: string) {
 
 export default function AddExpenseScreen() {
   const router = useRouter();
-  const { addExpense } = useExpenses();
+  const params = useLocalSearchParams<{ id?: string }>();
+
+  const {
+    expenses,
+    addExpense,
+    updateExpense,
+    defaultCurrency,
+    setDefaultCurrency,
+  } = useExpenses();
+
+  const editingExpense = useMemo(
+    () => expenses.find((expense) => expense.id === params.id),
+    [expenses, params.id]
+  );
+
+  const isEditMode = Boolean(editingExpense);
 
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState<AppCurrency>(defaultCurrency);
   const [category, setCategory] = useState<ExpenseCategory>("food");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(getTodayDateString());
   const [selectedTags, setSelectedTags] = useState<ExpenseTag[]>([]);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (editingExpense) {
+      setAmount(String(editingExpense.amount));
+      setCurrency(editingExpense.currency);
+      setCategory(editingExpense.category);
+      setNote(editingExpense.note ?? "");
+      setDate(editingExpense.date);
+      setSelectedTags(editingExpense.tags);
+      return;
+    }
+
+    setCurrency(defaultCurrency);
+  }, [editingExpense, defaultCurrency]);
 
   function toggleTag(tag: ExpenseTag) {
     setSelectedTags((current) =>
@@ -77,16 +114,22 @@ export default function AddExpenseScreen() {
     setIsSaving(true);
 
     try {
-      const newExpense: ExpenseEntry = {
-        id: Date.now().toString(),
+      const expense: ExpenseEntry = {
+        id: editingExpense?.id ?? Date.now().toString(),
         amount: parsedAmount,
+        currency,
         category,
         tags: selectedTags,
         note: note.trim() || undefined,
         date,
       };
 
-      await addExpense(newExpense);
+      if (editingExpense) {
+        await updateExpense(expense);
+      } else {
+        await addExpense(expense);
+      }
+
       router.back();
     } catch (saveError) {
       console.error("Failed to save expense:", saveError);
@@ -97,21 +140,72 @@ export default function AddExpenseScreen() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={styles.title}>Add Expense</Text>
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <Text style={styles.title}>
+        {isEditMode ? "Edit Expense" : "Add Expense"}
+      </Text>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Amount (€)</Text>
+        <Text style={styles.label}>Default currency</Text>
+        <View style={styles.optionsWrap}>
+          {currencies.map((item) => {
+            const isSelected = item === defaultCurrency;
+
+            return (
+              <Pressable
+                key={`default-${item}`}
+                onPress={() => setDefaultCurrency(item)}
+                style={[styles.optionChip, isSelected && styles.optionChipSelected]}
+              >
+                <Text
+                  style={[
+                    styles.optionChipText,
+                    isSelected && styles.optionChipTextSelected,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Amount</Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}
-          placeholder="e.g. 12.50"
+          placeholder="e.g. 1200"
           keyboardType="decimal-pad"
           style={styles.input}
         />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Expense currency</Text>
+        <View style={styles.optionsWrap}>
+          {currencies.map((item) => {
+            const isSelected = item === currency;
+
+            return (
+              <Pressable
+                key={item}
+                onPress={() => setCurrency(item)}
+                style={[styles.optionChip, isSelected && styles.optionChipSelected]}
+              >
+                <Text
+                  style={[
+                    styles.optionChipText,
+                    isSelected && styles.optionChipTextSelected,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -195,7 +289,11 @@ export default function AddExpenseScreen() {
         disabled={isSaving}
       >
         <Text style={styles.saveButtonText}>
-          {isSaving ? "Saving..." : "Save Expense"}
+          {isSaving
+            ? "Saving..."
+            : isEditMode
+            ? "Save Changes"
+            : "Save Expense"}
         </Text>
       </Pressable>
     </ScrollView>
