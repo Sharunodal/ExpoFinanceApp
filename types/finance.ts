@@ -1,19 +1,7 @@
-export type AppCurrency = "EUR" | "JPY"
+export type AppCurrency = "EUR" | "JPY";
 
-export type ExpenseCategory =
-  | "food"
-  | "transport"
-  | "utilities"
-  | "entertainment"
-  | "shopping"
-  | "health"
-  | "other";
-
-export type ExpenseTag =
-  | "credit-card"
-  | "subscription"
-  | "cash"
-  | "work";
+export type ExpenseCategory = string;
+export type ExpenseTag = string;
 
 export interface ExpenseEntry {
   id: string;
@@ -22,17 +10,17 @@ export interface ExpenseEntry {
   category: ExpenseCategory;
   tags: ExpenseTag[];
   note?: string;
-  date: string; // e.g. "2026-03-23"
+  date: string; // YYYY-MM-DD
 }
 
 export interface MonthlyBudget {
-  month: string; // e.g. "2026-03"
+  month: string; // YYYY-MM
   amount: number;
   currency: AppCurrency;
 }
 
 export interface ConversionRate {
-  month: string;
+  month: string; // YYYY-MM
   fromCurrency: AppCurrency;
   toCurrency: AppCurrency;
   rate: number;

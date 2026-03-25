@@ -9,6 +9,18 @@ import {
 const DATABASE_NAME = "expenses.db";
 const DEFAULT_CURRENCY: AppCurrency = "JPY";
 
+const DEFAULT_CATEGORIES = [
+  "food",
+  "transport",
+  "utilities",
+  "entertainment",
+  "shopping",
+  "health",
+  "other",
+];
+
+const DEFAULT_TAGS = ["credit-card", "subscription", "cash", "work"];
+
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 async function getDb() {
@@ -40,6 +52,17 @@ async function ensureColumn(
   await db.execAsync(
     `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definitionSql};`
   );
+}
+
+async function seedLookupTable(tableName: "categories" | "tags", values: string[]) {
+  const db = await getDb();
+
+  for (const value of values) {
+    await db.runAsync(
+      `INSERT OR IGNORE INTO ${tableName} (name) VALUES (?)`,
+      value
+    );
+  }
 }
 
 export async function initDb() {
@@ -74,10 +97,21 @@ export async function initDb() {
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS categories (
+      name TEXT PRIMARY KEY NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS tags (
+      name TEXT PRIMARY KEY NOT NULL
+    );
   `);
 
   await ensureColumn("expenses", "currency", `TEXT NOT NULL DEFAULT '${DEFAULT_CURRENCY}'`);
   await ensureColumn("budgets", "currency", `TEXT NOT NULL DEFAULT '${DEFAULT_CURRENCY}'`);
+
+  await seedLookupTable("categories", DEFAULT_CATEGORIES);
+  await seedLookupTable("tags", DEFAULT_TAGS);
 }
 
 type ExpenseRow = {
@@ -108,6 +142,10 @@ type SettingRow = {
   value: string;
 };
 
+type NameRow = {
+  name: string;
+};
+
 export async function getAllExpenses(): Promise<ExpenseEntry[]> {
   const db = await getDb();
 
@@ -121,8 +159,8 @@ export async function getAllExpenses(): Promise<ExpenseEntry[]> {
     id: row.id,
     amount: row.amount,
     currency: row.currency,
-    category: row.category as ExpenseEntry["category"],
-    tags: JSON.parse(row.tags) as ExpenseEntry["tags"],
+    category: row.category,
+    tags: JSON.parse(row.tags),
     note: row.note ?? undefined,
     date: row.date,
   }));
@@ -262,4 +300,72 @@ export async function setDefaultCurrency(currency: AppCurrency) {
      VALUES ('default_currency', ?)`,
     currency
   );
+}
+
+export async function getCategories(): Promise<string[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<NameRow>(
+    `SELECT name FROM categories ORDER BY name ASC`
+  );
+  return rows.map((row) => row.name);
+}
+
+export async function addCategory(name: string) {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT OR IGNORE INTO categories (name) VALUES (?)`,
+    name.trim().toLowerCase()
+  );
+}
+
+export async function deleteCategory(name: string) {
+  const db = await getDb();
+
+  await db.runAsync(
+    `UPDATE expenses
+     SET category = 'other'
+     WHERE category = ?`,
+    name
+  );
+
+  await db.runAsync(`DELETE FROM categories WHERE name = ?`, name);
+}
+
+export async function getTags(): Promise<string[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<NameRow>(
+    `SELECT name FROM tags ORDER BY name ASC`
+  );
+  return rows.map((row) => row.name);
+}
+
+export async function addTag(name: string) {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT OR IGNORE INTO tags (name) VALUES (?)`,
+    name.trim().toLowerCase()
+  );
+}
+
+export async function deleteTag(name: string) {
+  const db = await getDb();
+
+  const rows = await db.getAllAsync<{ id: string; tags: string }>(
+    `SELECT id, tags FROM expenses`
+  );
+
+  for (const row of rows) {
+    const parsedTags = JSON.parse(row.tags) as string[];
+    const nextTags = parsedTags.filter((tag) => tag !== name);
+
+    if (nextTags.length !== parsedTags.length) {
+      await db.runAsync(
+        `UPDATE expenses SET tags = ? WHERE id = ?`,
+        JSON.stringify(nextTags),
+        row.id
+      );
+    }
+  }
+
+  await db.runAsync(`DELETE FROM tags WHERE name = ?`, name);
 }

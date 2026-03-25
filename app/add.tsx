@@ -16,23 +16,6 @@ import {
   ExpenseTag,
 } from "../types/finance";
 
-const categories: ExpenseCategory[] = [
-  "food",
-  "transport",
-  "utilities",
-  "entertainment",
-  "shopping",
-  "health",
-  "other",
-];
-
-const availableTags: ExpenseTag[] = [
-  "credit-card",
-  "subscription",
-  "cash",
-  "work",
-];
-
 const currencies: AppCurrency[] = ["JPY", "EUR"];
 
 function getTodayDateString() {
@@ -57,6 +40,8 @@ export default function AddExpenseScreen() {
     updateExpense,
     defaultCurrency,
     setDefaultCurrency,
+    categories,
+    tags,
   } = useExpenses();
 
   const editingExpense = useMemo(
@@ -258,7 +243,7 @@ export default function AddExpenseScreen() {
       <View style={styles.section}>
         <Text style={styles.label}>Tags</Text>
         <View style={styles.optionsWrap}>
-          {availableTags.map((tag) => {
+          {tags.map((tag) => {
             const isSelected = selectedTags.includes(tag);
 
             return (

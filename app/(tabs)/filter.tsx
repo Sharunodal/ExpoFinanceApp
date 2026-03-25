@@ -23,21 +23,6 @@ import {
 type FilterPreset = "1d" | "7d" | "30d" | "custom";
 
 const currencies: AppCurrency[] = ["JPY", "EUR"];
-const categories: ExpenseCategory[] = [
-  "food",
-  "transport",
-  "utilities",
-  "entertainment",
-  "shopping",
-  "health",
-  "other",
-];
-const tags: ExpenseTag[] = [
-  "credit-card",
-  "subscription",
-  "cash",
-  "work",
-];
 
 function getTodayDateString() {
   const today = new Date();
@@ -88,7 +73,7 @@ function getTotalsByCurrency(expenses: ExpenseEntry[]) {
 }
 
 export default function FilterScreen() {
-  const { expenses } = useExpenses();
+  const { expenses, categories, tags } = useExpenses();
 
   const [preset, setPreset] = useState<FilterPreset>("7d");
   const presetRange = getPresetRange(preset);

@@ -1,0 +1,237 @@
+import { useState } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useExpenses } from "../../context/Expense";
+import { formatCategoryName } from "../../lib/format";
+
+export default function SettingsScreen() {
+  const {
+    categories,
+    tags,
+    addCategory,
+    deleteCategory,
+    addTag,
+    deleteTag,
+  } = useExpenses();
+
+  const [newCategory, setNewCategory] = useState("");
+  const [newTag, setNewTag] = useState("");
+  const [error, setError] = useState("");
+
+  async function handleAddCategory() {
+    const value = newCategory.trim().toLowerCase();
+
+    if (!value) {
+      setError("Please enter a category name.");
+      return;
+    }
+
+    setError("");
+    await addCategory(value);
+    setNewCategory("");
+  }
+
+  async function handleAddTag() {
+    const value = newTag.trim().toLowerCase();
+
+    if (!value) {
+      setError("Please enter a tag name.");
+      return;
+    }
+
+    setError("");
+    await addTag(value);
+    setNewTag("");
+  }
+
+  function confirmDeleteCategory(name: string) {
+    Alert.alert("Delete category", `Delete "${name}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteCategory(name);
+        },
+      },
+    ]);
+  }
+
+  function confirmDeleteTag(name: string) {
+    Alert.alert("Delete tag", `Delete "${name}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteTag(name);
+        },
+      },
+    ]);
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Settings</Text>
+
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Categories</Text>
+
+        <View style={styles.addRow}>
+          <TextInput
+            value={newCategory}
+            onChangeText={setNewCategory}
+            placeholder="New category"
+            style={styles.input}
+          />
+          <Pressable style={styles.addButton} onPress={handleAddCategory}>
+            <Text style={styles.addButtonText}>Add</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.listWrap}>
+          {categories.map((category) => (
+            <View key={category} style={styles.itemRow}>
+              <Text style={styles.itemText}>{formatCategoryName(category)}</Text>
+              {category !== "other" ? (
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={() => confirmDeleteCategory(category)}
+                >
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                </Pressable>
+              ) : (
+                <Text style={styles.lockedText}>Required</Text>
+              )}
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Tags</Text>
+
+        <View style={styles.addRow}>
+          <TextInput
+            value={newTag}
+            onChangeText={setNewTag}
+            placeholder="New tag"
+            style={styles.input}
+          />
+          <Pressable style={styles.addButton} onPress={handleAddTag}>
+            <Text style={styles.addButtonText}>Add</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.listWrap}>
+          {tags.map((tag) => (
+            <View key={tag} style={styles.itemRow}>
+              <Text style={styles.itemText}>{tag}</Text>
+              <Pressable
+                style={styles.deleteButton}
+                onPress={() => confirmDeleteTag(tag)}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+    gap: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "700",
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e5e5e5",
+    gap: 14,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  addRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#d9d9d9",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: "#fff",
+  },
+  addButton: {
+    backgroundColor: "#111",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  addButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  listWrap: {
+    gap: 10,
+  },
+  itemRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ececec",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  itemText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  deleteButton: {
+    backgroundColor: "#ffe5e5",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  deleteButtonText: {
+    color: "#b00020",
+    fontWeight: "700",
+  },
+  errorText: {
+    color: "#c62828",
+    fontSize: 14,
+  },
+  lockedText: {
+  color: "#666",
+  fontWeight: "600",
+},
+});

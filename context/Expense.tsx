@@ -13,11 +13,17 @@ import {
   ExpenseEntry,
 } from "../types/finance";
 import {
+  addCategory as addCategoryToDb,
+  addTag as addTagToDb,
+  deleteCategory as deleteCategoryFromDb,
   deleteExpense as deleteExpenseFromDb,
+  deleteTag as deleteTagFromDb,
   getAllExpenses,
   getBudgetForMonth,
+  getCategories,
   getConversionRatesForMonth,
   getDefaultCurrency,
+  getTags,
   initDb,
   insertExpense,
   updateExpense as updateExpenseInDb,
@@ -34,6 +40,8 @@ interface ExpenseContextValue {
   currentMonthBudgetCurrency: AppCurrency;
   selectedMonthRates: ConversionRate[];
   defaultCurrency: AppCurrency;
+  categories: string[];
+  tags: string[];
   setDefaultCurrency: (currency: AppCurrency) => Promise<void>;
   addExpense: (expense: ExpenseEntry) => Promise<void>;
   updateExpense: (expense: ExpenseEntry) => Promise<void>;
@@ -50,6 +58,10 @@ interface ExpenseContextValue {
     toCurrency: AppCurrency,
     rate: number
   ) => Promise<void>;
+  addCategory: (name: string) => Promise<void>;
+  deleteCategory: (name: string) => Promise<void>;
+  addTag: (name: string) => Promise<void>;
+  deleteTag: (name: string) => Promise<void>;
   goToPreviousMonth: () => void;
   goToNextMonth: () => void;
   setSelectedMonth: (month: string) => void;
@@ -86,10 +98,21 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   const [selectedMonthRates, setSelectedMonthRates] = useState<ConversionRate[]>([]);
   const [defaultCurrency, setDefaultCurrencyState] =
     useState<AppCurrency>(DEFAULT_BUDGET_CURRENCY);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
 
   const reloadExpenses = useCallback(async () => {
     const loadedExpenses = await getAllExpenses();
     setExpenses(loadedExpenses);
+  }, []);
+
+  const reloadLookups = useCallback(async () => {
+    const [loadedCategories, loadedTags] = await Promise.all([
+      getCategories(),
+      getTags(),
+    ]);
+    setCategories(loadedCategories);
+    setTags(loadedTags);
   }, []);
 
   const loadMonthData = useCallback(async (month: string) => {
@@ -139,6 +162,38 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     [selectedMonth]
   );
 
+  const addCategory = useCallback(
+    async (name: string) => {
+      await addCategoryToDb(name);
+      await reloadLookups();
+    },
+    [reloadLookups]
+  );
+
+  const deleteCategory = useCallback(
+    async (name: string) => {
+      await deleteCategoryFromDb(name);
+      await Promise.all([reloadLookups(), reloadExpenses()]);
+    },
+    [reloadLookups, reloadExpenses]
+  );
+
+  const addTag = useCallback(
+    async (name: string) => {
+      await addTagToDb(name);
+      await reloadLookups();
+    },
+    [reloadLookups]
+  );
+
+  const deleteTag = useCallback(
+    async (name: string) => {
+      await deleteTagFromDb(name);
+      await Promise.all([reloadLookups(), reloadExpenses()]);
+    },
+    [reloadLookups, reloadExpenses]
+  );
+
   const goToPreviousMonth = useCallback(() => {
     setSelectedMonth((current) => shiftMonth(current, -1));
   }, []);
@@ -155,6 +210,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const [storedDefaultCurrency] = await Promise.all([
           getDefaultCurrency(),
           reloadExpenses(),
+          reloadLookups(),
         ]);
 
         setDefaultCurrencyState(storedDefaultCurrency);
@@ -167,7 +223,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     }
 
     setup();
-  }, [reloadExpenses, loadMonthData]);
+  }, [reloadExpenses, reloadLookups, loadMonthData]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -210,6 +266,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       currentMonthBudgetCurrency,
       selectedMonthRates,
       defaultCurrency,
+      categories,
+      tags,
       setDefaultCurrency,
       updateExpense,
       addExpense,
@@ -217,6 +275,10 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       reloadExpenses,
       saveBudgetForMonth,
       saveConversionRate,
+      addCategory,
+      deleteCategory,
+      addTag,
+      deleteTag,
       goToPreviousMonth,
       goToNextMonth,
       setSelectedMonth,
@@ -229,6 +291,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       currentMonthBudgetCurrency,
       selectedMonthRates,
       defaultCurrency,
+      categories,
+      tags,
       setDefaultCurrency,
       updateExpense,
       addExpense,
@@ -236,6 +300,10 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       reloadExpenses,
       saveBudgetForMonth,
       saveConversionRate,
+      addCategory,
+      deleteCategory,
+      addTag,
+      deleteTag,
       goToPreviousMonth,
       goToNextMonth,
     ]
