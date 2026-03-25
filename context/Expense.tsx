@@ -30,7 +30,7 @@ import {
   setDefaultCurrency as setDefaultCurrencyInDb,
   upsertBudgetForMonth,
   upsertConversionRate,
-} from "../lib/db";
+} from "../lib/db/";
 
 interface ExpenseContextValue {
   expenses: ExpenseEntry[];

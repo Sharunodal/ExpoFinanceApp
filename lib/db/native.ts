@@ -4,7 +4,7 @@ import {
   ConversionRate,
   ExpenseEntry,
   MonthlyBudget,
-} from "../types/finance";
+} from "../../types/finance";
 
 const DATABASE_NAME = "expenses.db";
 const DEFAULT_CURRENCY: AppCurrency = "JPY";
