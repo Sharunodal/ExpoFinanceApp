@@ -15,20 +15,11 @@ import {
   ExpenseEntry,
   ExpenseTag,
 } from "../types/finance";
+import { getTodayDateString, isValidYmdDate } from "@/lib/date";
+import { formatCategoryName } from "@/lib/format";
+import DateInputRow from "@/components/DateInput";
 
 const currencies: AppCurrency[] = ["JPY", "EUR"];
-
-function getTodayDateString() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function formatCategoryName(category: string) {
-  return category.charAt(0).toUpperCase() + category.slice(1);
-}
 
 export default function AddExpenseScreen() {
   const router = useRouter();
@@ -90,7 +81,7 @@ export default function AddExpenseScreen() {
       return;
     }
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    if (!isValidYmdDate(date)) {
       setError("Please enter the date as YYYY-MM-DD.");
       return;
     }
@@ -162,6 +153,7 @@ export default function AddExpenseScreen() {
           value={amount}
           onChangeText={setAmount}
           placeholder="e.g. 1200"
+          placeholderTextColor="#888"
           keyboardType="decimal-pad"
           style={styles.input}
         />
@@ -225,20 +217,12 @@ export default function AddExpenseScreen() {
           value={note}
           onChangeText={setNote}
           placeholder="Optional note"
+          placeholderTextColor="#888"
           style={styles.input}
         />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Date</Text>
-        <TextInput
-          value={date}
-          onChangeText={setDate}
-          placeholder="YYYY-MM-DD"
-          style={styles.input}
-          autoCapitalize="none"
-        />
-      </View>
+      <DateInputRow label="Date" value={date} onChange={setDate} />
 
       <View style={styles.section}>
         <Text style={styles.label}>Tags</Text>

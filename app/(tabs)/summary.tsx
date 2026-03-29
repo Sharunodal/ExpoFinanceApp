@@ -13,7 +13,8 @@ import {
   formatCurrency,
   formatMonthLabel,
 } from "../../lib/format";
-import { AppCurrency, ExpenseCategory, ExpenseEntry } from "../../types/finance";
+import { AppCurrency, ExpenseEntry } from "../../types/finance";
+import { DEFAULT_APP_CURRENCY } from "../../constants";
 
 const currencies: AppCurrency[] = ["JPY", "EUR"];
 
@@ -82,26 +83,18 @@ function getConvertedCategoryTotals(
   budgetCurrency: AppCurrency,
   rateMap: Partial<Record<string, number>>
 ) {
-  const totals: Record<ExpenseCategory, number> = {
-    food: 0,
-    transport: 0,
-    utilities: 0,
-    entertainment: 0,
-    shopping: 0,
-    health: 0,
-    other: 0,
-  };
+  const totals: Record<string, number> = {};
 
   for (const expense of expenses) {
-    if (expense.currency === budgetCurrency) {
-      totals[expense.category] += expense.amount;
-      continue;
-    }
+    const convertedAmount =
+      expense.currency === budgetCurrency
+        ? expense.amount
+        : (rateMap[`${expense.currency}->${budgetCurrency}`] ?? 0) *
+          expense.amount;
 
-    const rate = rateMap[`${expense.currency}->${budgetCurrency}`];
-    if (!rate || rate <= 0) continue;
+    if (convertedAmount <= 0) continue;
 
-    totals[expense.category] += expense.amount * rate;
+    totals[expense.category] = (totals[expense.category] ?? 0) + convertedAmount;
   }
 
   return Object.entries(totals)
@@ -125,7 +118,8 @@ export default function SummaryScreen() {
 
   const [budgetInput, setBudgetInput] = useState(String(currentMonthBudget));
   const [budgetCurrency, setBudgetCurrency] =
-    useState<AppCurrency>(currentMonthBudgetCurrency);
+    useState<AppCurrency>(currentMonthBudgetCurrency ?? DEFAULT_APP_CURRENCY);
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [budgetError, setBudgetError] = useState("");
   const [rateError, setRateError] = useState("");
   const [rateInputs, setRateInputs] = useState<Record<string, string>>({});
@@ -133,11 +127,11 @@ export default function SummaryScreen() {
   const [feedbackType, setFeedbackType] = useState<"success" | "error" | "">("");
 
   useEffect(() => {
-    setBudgetInput(String(currentMonthBudget));
+    setBudgetInput(currentMonthBudget != null ? String(currentMonthBudget) : "");
   }, [currentMonthBudget]);
 
   useEffect(() => {
-    setBudgetCurrency(currentMonthBudgetCurrency);
+    setBudgetCurrency(currentMonthBudgetCurrency ?? DEFAULT_APP_CURRENCY);
   }, [currentMonthBudgetCurrency]);
 
   useEffect(() => {
@@ -181,6 +175,13 @@ export default function SummaryScreen() {
     [selectedMonthRates]
   );
 
+  const currenciesNeedingConversion = useMemo(
+    () => usedCurrencies.filter((currency) => currency !== budgetCurrency),
+    [usedCurrencies, budgetCurrency]
+  );
+
+  const shouldShowConversionRates = currenciesNeedingConversion.length > 0;
+
   const { convertedSpent, missingCurrencies } = useMemo(
     () => getConvertedSpent(monthExpenses, budgetCurrency, rateMap),
     [monthExpenses, budgetCurrency, rateMap]
@@ -191,9 +192,11 @@ export default function SummaryScreen() {
     [monthExpenses, budgetCurrency, rateMap]
   );
 
-  const remaining = currentMonthBudget - convertedSpent;
+  const spentLabel = shouldShowConversionRates ? "Spent in budget currency" : "Spent";
+
+  const remaining = currentMonthBudget != null ? currentMonthBudget - convertedSpent : null;
   const percentageUsed =
-    currentMonthBudget > 0
+    currentMonthBudget != null && currentMonthBudget > 0
       ? Math.min((convertedSpent / currentMonthBudget) * 100, 100)
       : 0;
 
@@ -211,6 +214,7 @@ export default function SummaryScreen() {
 
     try {
       await saveBudgetForMonth(selectedMonth, parsed, budgetCurrency);
+      setIsEditingBudget(false);
       setFeedbackMessage("Budget saved.");
       setFeedbackType("success");
     } catch (error) {
@@ -307,74 +311,125 @@ export default function SummaryScreen() {
           <View style={styles.bigCard}>
             <Text style={styles.label}>Monthly Budget</Text>
 
-            <TextInput
-              value={budgetInput}
-              onChangeText={setBudgetInput}
-              keyboardType="decimal-pad"
-              placeholder="Enter budget"
-              style={styles.input}
-            />
+            {currentMonthBudget == null ? (
+              <>
+                <Text style={styles.noBudgetText}>
+                  No budget set for this month yet.
+                </Text>
 
-            <View style={styles.currencyRow}>
-              {currencies.map((item) => {
-                const isSelected = item === budgetCurrency;
+                <Pressable
+                  style={styles.saveButton}
+                  onPress={() => {
+                    setBudgetInput("");
+                    setBudgetCurrency(DEFAULT_APP_CURRENCY);
+                    setIsEditingBudget(true);
+                  }}
+                >
+                  <Text style={styles.saveButtonText}>Set Budget</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.mainValue}>
+                  {formatCurrency(
+                    currentMonthBudget,
+                    currentMonthBudgetCurrency ?? DEFAULT_APP_CURRENCY
+                  )}
+                </Text>
 
-                return (
-                  <Pressable
-                    key={item}
-                    onPress={() => setBudgetCurrency(item)}
-                    style={[
-                      styles.currencyChip,
-                      isSelected && styles.currencyChipSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.currencyChipText,
-                        isSelected && styles.currencyChipTextSelected,
-                      ]}
-                    >
-                      {item}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                <Text style={styles.label}>
+                  Budget currency:{" "}
+                  {currentMonthBudgetCurrency ?? DEFAULT_APP_CURRENCY}
+                </Text>
 
-            {budgetError ? <Text style={styles.errorText}>{budgetError}</Text> : null}
+                <Pressable
+                  style={styles.secondaryButton}
+                  onPress={() => setIsEditingBudget((current) => !current)}
+                >
+                  <Text style={styles.secondaryButtonText}>
+                    {isEditingBudget ? "Cancel" : "Edit Budget"}
+                  </Text>
+                </Pressable>
+              </>
+            )}
 
-            <Pressable style={styles.saveButton} onPress={handleSaveBudget}>
-              <Text style={styles.saveButtonText}>Save Budget</Text>
-            </Pressable>
+            {isEditingBudget ? (
+              <View style={styles.editorSection}>
+                <TextInput
+                  value={budgetInput}
+                  onChangeText={setBudgetInput}
+                  keyboardType="decimal-pad"
+                  placeholder="Enter budget"
+                  placeholderTextColor="#888"
+                  style={styles.input}
+                />
 
-            <Text style={styles.mainValue}>
-              {formatCurrency(currentMonthBudget, currentMonthBudgetCurrency)}
-            </Text>
+                <View style={styles.currencyRow}>
+                  {currencies.map((item) => {
+                    const isSelected = item === budgetCurrency;
+
+                    return (
+                      <Pressable
+                        key={item}
+                        onPress={() => setBudgetCurrency(item)}
+                        style={[
+                          styles.currencyChip,
+                          isSelected && styles.currencyChipSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.currencyChipText,
+                            isSelected && styles.currencyChipTextSelected,
+                          ]}
+                        >
+                          {item}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {budgetError ? (
+                  <Text style={styles.errorText}>{budgetError}</Text>
+                ) : null}
+
+                <Pressable style={styles.saveButton} onPress={handleSaveBudget}>
+                  <Text style={styles.saveButtonText}>Save Budget</Text>
+                </Pressable>
+              </View>
+            ) : null}
 
             <View style={styles.row}>
               <View style={styles.statBlock}>
-                <Text style={styles.label}>Spent (converted)</Text>
+                <Text style={styles.label}>{spentLabel}</Text>
                 <Text style={styles.statValue}>
                   {formatCurrency(convertedSpent, budgetCurrency)}
                 </Text>
               </View>
 
-              <View style={styles.statBlock}>
-                <Text style={styles.label}>Remaining</Text>
-                <Text style={styles.statValue}>
-                  {formatCurrency(remaining, budgetCurrency)}
-                </Text>
-              </View>
+              {remaining != null ? (
+                <View style={styles.statBlock}>
+                  <Text style={styles.label}>Remaining</Text>
+                  <Text style={styles.statValue}>
+                    {formatCurrency(remaining, budgetCurrency)}
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
-            <Text style={styles.label}>Used {percentageUsed.toFixed(1)}%</Text>
-            <View style={styles.progressTrack}>
-              <View
-                style={[styles.progressFill, { width: `${percentageUsed}%` }]}
-              />
-            </View>
+            {currentMonthBudget != null ? (
+              <>
+                <Text style={styles.label}>Used {percentageUsed.toFixed(1)}%</Text>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[styles.progressFill, { width: `${percentageUsed}%` }]}
+                  />
+                </View>
+              </>
+            ) : null}
 
-            {missingCurrencies.length > 0 ? (
+            {shouldShowConversionRates && missingCurrencies.length > 0 ? (
               <Text style={styles.warningText}>
                 Missing conversion rates for: {missingCurrencies.join(", ")}
               </Text>
@@ -398,22 +453,21 @@ export default function SummaryScreen() {
             )}
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Conversion Rates to {budgetCurrency}
-            </Text>
+          {shouldShowConversionRates ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                Conversion Rates to {budgetCurrency}
+              </Text>
 
-            {usedCurrencies
-              .filter((currency) => currency !== budgetCurrency)
-              .map((currency) => {
+              {currenciesNeedingConversion.map((currency) => {
                 const key = `${currency}->${budgetCurrency}`;
-
+              
                 return (
                   <View key={currency} style={styles.rateCard}>
                     <Text style={styles.categoryName}>
                       {currency} → {budgetCurrency}
                     </Text>
-
+                
                     <View style={styles.rateRow}>
                       <TextInput
                         value={rateInputs[key] ?? ""}
@@ -422,6 +476,7 @@ export default function SummaryScreen() {
                         }
                         keyboardType="decimal-pad"
                         placeholder="Enter rate"
+                        placeholderTextColor="#888"
                         style={styles.input}
                       />
 
@@ -436,8 +491,9 @@ export default function SummaryScreen() {
                 );
               })}
 
-            {rateError ? <Text style={styles.errorText}>{rateError}</Text> : null}
-          </View>
+              {rateError ? <Text style={styles.errorText}>{rateError}</Text> : null}
+            </View>
+          ) : null}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
@@ -451,11 +507,9 @@ export default function SummaryScreen() {
             ) : (
               convertedCategoryTotals.map(([category, total]) => (
                 <View key={category} style={styles.categoryRow}>
-                  <View>
-                    <Text style={styles.categoryName}>
-                      {formatCategoryName(category)}
-                    </Text>
-                  </View>
+                  <Text style={styles.categoryName}>
+                    {formatCategoryName(category)}
+                  </Text>
 
                   <Text style={styles.categoryAmount}>
                     {formatCurrency(total, budgetCurrency)}
@@ -667,5 +721,22 @@ const styles = StyleSheet.create({
   warningText: {
     color: "#9a6700",
     fontSize: 14,
+  },
+  noBudgetText: {
+    fontSize: 15,
+    color: "#666",
+  },
+  secondaryButton: {
+    backgroundColor: "#f1f1f1",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: "#222",
+    fontWeight: "700",
+  },
+  editorSection: {
+    gap: 12,
   },
 });

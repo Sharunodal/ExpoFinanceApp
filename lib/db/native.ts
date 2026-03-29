@@ -5,9 +5,9 @@ import {
   ExpenseEntry,
   MonthlyBudget,
 } from "../../types/finance";
+import { DEFAULT_APP_CURRENCY } from "../../constants";
 
 const DATABASE_NAME = "expenses.db";
-const DEFAULT_CURRENCY: AppCurrency = "JPY";
 
 const DEFAULT_CATEGORIES = [
   "food",
@@ -107,8 +107,8 @@ export async function initDb() {
     );
   `);
 
-  await ensureColumn("expenses", "currency", `TEXT NOT NULL DEFAULT '${DEFAULT_CURRENCY}'`);
-  await ensureColumn("budgets", "currency", `TEXT NOT NULL DEFAULT '${DEFAULT_CURRENCY}'`);
+  await ensureColumn("expenses", "currency", `TEXT NOT NULL DEFAULT '${DEFAULT_APP_CURRENCY}'`);
+  await ensureColumn("budgets", "currency", `TEXT NOT NULL DEFAULT '${DEFAULT_APP_CURRENCY}'`);
 
   await seedLookupTable("categories", DEFAULT_CATEGORIES);
   await seedLookupTable("tags", DEFAULT_TAGS);
@@ -288,7 +288,7 @@ export async function getDefaultCurrency(): Promise<AppCurrency> {
      WHERE key = 'default_currency'`
   );
 
-  if (!row) return DEFAULT_CURRENCY;
+  if (!row) return DEFAULT_APP_CURRENCY;
   return row.value as AppCurrency;
 }
 
@@ -368,4 +368,20 @@ export async function deleteTag(name: string) {
   }
 
   await db.runAsync(`DELETE FROM tags WHERE name = ?`, name);
+}
+
+export async function resetLocalData() {
+  const db = await getDb();
+
+  await db.execAsync(`
+    DELETE FROM expenses;
+    DELETE FROM budgets;
+    DELETE FROM conversion_rates;
+    DELETE FROM app_settings;
+    DELETE FROM categories;
+    DELETE FROM tags;
+  `);
+
+  await seedLookupTable("categories", DEFAULT_CATEGORIES);
+  await seedLookupTable("tags", DEFAULT_TAGS);
 }

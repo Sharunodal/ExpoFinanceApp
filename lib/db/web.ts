@@ -4,9 +4,9 @@ import {
   ExpenseEntry,
   MonthlyBudget,
 } from "../../types/finance";
+import { DEFAULT_APP_CURRENCY } from "../../constants";
 
 const STORAGE_KEY = "expense-app-web-db";
-const DEFAULT_CURRENCY: AppCurrency = "JPY";
 
 const DEFAULT_CATEGORIES = [
   "food",
@@ -37,7 +37,7 @@ function getDefaultState(): WebDbState {
     budgets: [],
     conversionRates: [],
     settings: {
-      defaultCurrency: DEFAULT_CURRENCY,
+      defaultCurrency: DEFAULT_APP_CURRENCY,
     },
     categories: DEFAULT_CATEGORIES,
     tags: DEFAULT_TAGS,
@@ -62,7 +62,7 @@ function readState(): WebDbState {
       conversionRates: parsed.conversionRates ?? [],
       settings: {
         defaultCurrency:
-          parsed.settings?.defaultCurrency ?? DEFAULT_CURRENCY,
+          parsed.settings?.defaultCurrency ?? DEFAULT_APP_CURRENCY,
       },
       categories: parsed.categories?.length
         ? parsed.categories
@@ -215,5 +215,10 @@ export async function deleteTag(name: string) {
     ...expense,
     tags: expense.tags.filter((tag) => tag !== name),
   }));
+  writeState(state);
+}
+
+export async function resetLocalData() {
+  const state = getDefaultState();
   writeState(state);
 }

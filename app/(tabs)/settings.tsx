@@ -19,6 +19,7 @@ export default function SettingsScreen() {
     deleteCategory,
     addTag,
     deleteTag,
+    resetLocalData,
   } = useExpenses();
 
   const [newCategory, setNewCategory] = useState("");
@@ -75,6 +76,29 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  }
+
+  function confirmResetLocalData() {
+    Alert.alert(
+      "Reset local data",
+      "This will delete all expenses, budgets, conversion rates, custom categories, and tags stored on this device. Are you sure?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await resetLocalData();
+              setError("");
+            } catch (error) {
+              console.error("Failed to reset local data:", error);
+              setError("Failed to reset local data.");
+            }
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -144,6 +168,17 @@ export default function SettingsScreen() {
               </Pressable>
             </View>
           ))}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Local Data</Text>
+          <Text style={styles.helperText}>
+            Reset the app to its initial state on this device.
+          </Text>
+
+          <Pressable style={styles.resetButton} onPress={confirmResetLocalData}>
+            <Text style={styles.resetButtonText}>Reset Local Data</Text>
+          </Pressable>
         </View>
       </View>
     </ScrollView>
@@ -233,5 +268,20 @@ const styles = StyleSheet.create({
   lockedText: {
   color: "#666",
   fontWeight: "600",
-},
+  },
+  helperText: {
+    color: "#666",
+    fontSize: 14,
+  },
+  resetButton: {
+    backgroundColor: "#b00020",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  resetButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
 });

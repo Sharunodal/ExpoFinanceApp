@@ -19,3 +19,4 @@ export const deleteCategory = impl.deleteCategory;
 export const getTags = impl.getTags;
 export const addTag = impl.addTag;
 export const deleteTag = impl.deleteTag;
+export const resetLocalData = impl.resetLocalData;

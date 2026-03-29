@@ -4,7 +4,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useExpenses } from "../../context/Expense";
@@ -19,28 +18,16 @@ import {
   ExpenseEntry,
   ExpenseTag,
 } from "../../types/finance";
+import {
+  getPastDateString,
+  getTodayDateString,
+  isValidYmdDate,
+} from "../../lib/date";
+import DateInputRow from "@/components/DateInput";
 
 type FilterPreset = "1d" | "7d" | "30d" | "custom";
 
 const currencies: AppCurrency[] = ["JPY", "EUR"];
-
-function getTodayDateString() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function getPastDateString(daysBack: number) {
-  const date = new Date();
-  date.setDate(date.getDate() - daysBack);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 function normalizeDate(date: string) {
   return new Date(`${date}T00:00:00`).getTime();
@@ -123,12 +110,16 @@ export default function FilterScreen() {
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter((expense) => {
-      if (activeFrom && normalizeDate(expense.date) < normalizeDate(activeFrom)) {
-        return false;
+      if (activeFrom && isValidYmdDate(activeFrom)) {
+        if (normalizeDate(expense.date) < normalizeDate(activeFrom)) {
+          return false;
+        }
       }
 
-      if (activeTo && normalizeDate(expense.date) > normalizeDate(activeTo)) {
-        return false;
+      if (activeTo && isValidYmdDate(activeTo)) {
+        if (normalizeDate(expense.date) > normalizeDate(activeTo)) {
+          return false;
+        }
       }
 
       if (
@@ -147,7 +138,7 @@ export default function FilterScreen() {
 
       if (
         selectedTags.length > 0 &&
-        selectedTags.some((tag) => expense.tags.includes(tag))
+        !selectedTags.some((tag) => expense.tags.includes(tag))
       ) {
         return false;
       }
@@ -205,25 +196,17 @@ export default function FilterScreen() {
 
         {preset === "custom" ? (
           <View style={styles.customDateWrap}>
-            <View style={styles.inputSection}>
-              <Text style={styles.label}>From</Text>
-              <TextInput
-                value={customFrom}
-                onChangeText={setCustomFrom}
-                placeholder="YYYY-MM-DD"
-                style={styles.input}
-              />
-            </View>
+            <DateInputRow
+              label="From"
+              value={customFrom}
+              onChange={setCustomFrom}
+            />
 
-            <View style={styles.inputSection}>
-              <Text style={styles.label}>To</Text>
-              <TextInput
-                value={customTo}
-                onChangeText={setCustomTo}
-                placeholder="YYYY-MM-DD"
-                style={styles.input}
-              />
-            </View>
+            <DateInputRow
+              label="To"
+              value={customTo}
+              onChange={setCustomTo}
+            />
           </View>
         ) : (
           <Text style={styles.rangeText}>
@@ -383,29 +366,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  inputSection: {
-    gap: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d9d9d9",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: "#fff",
-  },
-  customDateWrap: {
-    gap: 12,
-  },
   optionsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
+  },
+  customDateWrap: {
+    gap: 12,
   },
   chip: {
     paddingHorizontal: 12,

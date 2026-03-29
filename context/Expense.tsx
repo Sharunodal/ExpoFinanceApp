@@ -18,6 +18,7 @@ import {
   deleteCategory as deleteCategoryFromDb,
   deleteExpense as deleteExpenseFromDb,
   deleteTag as deleteTagFromDb,
+  resetLocalData as resetLocalDataInDb,
   getAllExpenses,
   getBudgetForMonth,
   getCategories,
@@ -31,13 +32,14 @@ import {
   upsertBudgetForMonth,
   upsertConversionRate,
 } from "../lib/db/";
+import { DEFAULT_APP_CURRENCY } from "../constants";
 
 interface ExpenseContextValue {
   expenses: ExpenseEntry[];
   isLoading: boolean;
   selectedMonth: string;
-  currentMonthBudget: number;
-  currentMonthBudgetCurrency: AppCurrency;
+  currentMonthBudget: number | null;
+  currentMonthBudgetCurrency: AppCurrency | null;
   selectedMonthRates: ConversionRate[];
   defaultCurrency: AppCurrency;
   categories: string[];
@@ -47,6 +49,7 @@ interface ExpenseContextValue {
   updateExpense: (expense: ExpenseEntry) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   reloadExpenses: () => Promise<void>;
+  resetLocalData: () => Promise<void>;
   saveBudgetForMonth: (
     month: string,
     amount: number,
@@ -69,9 +72,6 @@ interface ExpenseContextValue {
 
 const ExpenseContext = createContext<ExpenseContextValue | undefined>(undefined);
 
-const DEFAULT_BUDGET_AMOUNT = 120000;
-const DEFAULT_BUDGET_CURRENCY: AppCurrency = "JPY";
-
 function getCurrentMonthKey() {
   const today = new Date();
   const year = today.getFullYear();
@@ -92,12 +92,12 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
-  const [currentMonthBudget, setCurrentMonthBudget] = useState(DEFAULT_BUDGET_AMOUNT);
+  const [currentMonthBudget, setCurrentMonthBudget] = useState<number | null>(null);
   const [currentMonthBudgetCurrency, setCurrentMonthBudgetCurrency] =
-    useState<AppCurrency>(DEFAULT_BUDGET_CURRENCY);
+    useState<AppCurrency | null>(null);
   const [selectedMonthRates, setSelectedMonthRates] = useState<ConversionRate[]>([]);
   const [defaultCurrency, setDefaultCurrencyState] =
-    useState<AppCurrency>(DEFAULT_BUDGET_CURRENCY);
+    useState<AppCurrency>(DEFAULT_APP_CURRENCY);
   const [categories, setCategories] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
 
@@ -121,10 +121,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       getConversionRatesForMonth(month),
     ]);
 
-    setCurrentMonthBudget(budget?.amount ?? DEFAULT_BUDGET_AMOUNT);
-    setCurrentMonthBudgetCurrency(
-      budget?.currency ?? DEFAULT_BUDGET_CURRENCY
-    );
+    setCurrentMonthBudget(budget?.amount ?? null);
+    setCurrentMonthBudgetCurrency(budget?.currency ?? null);
     setSelectedMonthRates(rates);
   }, []);
 
@@ -257,6 +255,20 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     [reloadExpenses]
   );
 
+  const resetLocalData = useCallback(async () => {
+    await resetLocalDataInDb();
+
+    const [storedDefaultCurrency] = await Promise.all([
+      getDefaultCurrency(),
+      reloadExpenses(),
+      reloadLookups(),
+      loadMonthData(getCurrentMonthKey()),
+    ]);
+
+    setDefaultCurrencyState(storedDefaultCurrency);
+    setSelectedMonth(getCurrentMonthKey());
+  }, [reloadExpenses, reloadLookups, loadMonthData]);
+
   const value = useMemo(
     () => ({
       expenses,
@@ -279,6 +291,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       deleteCategory,
       addTag,
       deleteTag,
+      resetLocalData,
       goToPreviousMonth,
       goToNextMonth,
       setSelectedMonth,
@@ -304,6 +317,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       deleteCategory,
       addTag,
       deleteTag,
+      resetLocalData,
       goToPreviousMonth,
       goToNextMonth,
     ]

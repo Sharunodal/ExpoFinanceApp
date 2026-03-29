@@ -13,7 +13,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Entries",
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ size, focused }) => (
             <Image
               source={require("../../assets/images/edit.png")}
               style={{
@@ -30,7 +30,7 @@ export default function TabsLayout() {
         name="filter"
         options={{
           title: "Filter",
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ size, focused }) => (
             <Image
               source={require("../../assets/images/filter.png")}
               style={{
@@ -47,7 +47,7 @@ export default function TabsLayout() {
         name="summary"
         options={{
           title: "Summary",
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ size, focused }) => (
             <Image
               source={require("../../assets/images/summary.png")}
               style={{
@@ -65,7 +65,7 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ size, focused }) => (
             <Image
               source={require("../../assets/images/settings.png")}
               style={{
