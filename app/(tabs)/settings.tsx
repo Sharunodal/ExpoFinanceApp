@@ -25,6 +25,8 @@ export default function SettingsScreen() {
   const [newCategory, setNewCategory] = useState("");
   const [newTag, setNewTag] = useState("");
   const [error, setError] = useState("");
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
 
   async function handleAddCategory() {
     const value = newCategory.trim().toLowerCase();
@@ -108,78 +110,101 @@ export default function SettingsScreen() {
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Categories</Text>
+        <Pressable
+          style={styles.sectionHeader}
+          onPress={() => setCategoriesOpen((current) => !current)}
+        >
+          <Text style={styles.sectionTitle}>Categories</Text>
+          <Text style={styles.chevron}>{categoriesOpen ? "⌄" : ">"}</Text>
+        </Pressable>
 
-        <View style={styles.addRow}>
-          <TextInput
-            value={newCategory}
-            onChangeText={setNewCategory}
-            placeholder="New category"
-            style={styles.input}
-          />
-          <Pressable style={styles.addButton} onPress={handleAddCategory}>
-            <Text style={styles.addButtonText}>Add</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.listWrap}>
-          {categories.map((category) => (
-            <View key={category} style={styles.itemRow}>
-              <Text style={styles.itemText}>{formatCategoryName(category)}</Text>
-              {category !== "other" ? (
-                <Pressable
-                  style={styles.deleteButton}
-                  onPress={() => confirmDeleteCategory(category)}
-                >
-                  <Text style={styles.deleteButtonText}>Delete</Text>
-                </Pressable>
-              ) : (
-                <Text style={styles.lockedText}>Required</Text>
-              )}
+        {categoriesOpen ? (
+          <>
+            <View style={styles.addRow}>
+              <TextInput
+                value={newCategory}
+                onChangeText={setNewCategory}
+                placeholder="New category"
+                style={styles.input}
+              />
+              <Pressable style={styles.addButton} onPress={handleAddCategory}>
+                <Text style={styles.addButtonText}>Add</Text>
+              </Pressable>
             </View>
-          ))}
-        </View>
+
+            <View style={styles.listWrap}>
+              {categories.map((category) => (
+                <View key={category} style={styles.itemRow}>
+                  <Text style={styles.itemText}>
+                    {formatCategoryName(category)}
+                  </Text>
+
+                  {category !== "other" ? (
+                    <Pressable
+                      style={styles.deleteButton}
+                      onPress={() => confirmDeleteCategory(category)}
+                    >
+                      <Text style={styles.deleteButtonText}>Delete</Text>
+                    </Pressable>
+                  ) : (
+                    <Text style={styles.lockedText}>Required</Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          </>
+        ) : null}
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Tags</Text>
+        <Pressable
+          style={styles.sectionHeader}
+          onPress={() => setTagsOpen((current) => !current)}
+        >
+          <Text style={styles.sectionTitle}>Tags</Text>
+          <Text style={styles.chevron}>{tagsOpen ? "⌄" : ">"}</Text>
+        </Pressable>
 
-        <View style={styles.addRow}>
-          <TextInput
-            value={newTag}
-            onChangeText={setNewTag}
-            placeholder="New tag"
-            style={styles.input}
-          />
-          <Pressable style={styles.addButton} onPress={handleAddTag}>
-            <Text style={styles.addButtonText}>Add</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.listWrap}>
-          {tags.map((tag) => (
-            <View key={tag} style={styles.itemRow}>
-              <Text style={styles.itemText}>{tag}</Text>
-              <Pressable
-                style={styles.deleteButton}
-                onPress={() => confirmDeleteTag(tag)}
-              >
-                <Text style={styles.deleteButtonText}>Delete</Text>
+        {tagsOpen ? (
+          <>
+            <View style={styles.addRow}>
+              <TextInput
+                value={newTag}
+                onChangeText={setNewTag}
+                placeholder="New tag"
+                style={styles.input}
+              />
+              <Pressable style={styles.addButton} onPress={handleAddTag}>
+                <Text style={styles.addButtonText}>Add</Text>
               </Pressable>
             </View>
-          ))}
-        </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Local Data</Text>
-          <Text style={styles.helperText}>
-            Reset the app to its initial state on this device.
-          </Text>
+            <View style={styles.listWrap}>
+              {tags.map((tag) => (
+                <View key={tag} style={styles.itemRow}>
+                  <Text style={styles.itemText}>{tag}</Text>
+                  <Pressable
+                    style={styles.deleteButton}
+                    onPress={() => confirmDeleteTag(tag)}
+                  >
+                    <Text style={styles.deleteButtonText}>Delete</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : null}
+      </View>
 
-          <Pressable style={styles.resetButton} onPress={confirmResetLocalData}>
-            <Text style={styles.resetButtonText}>Reset Local Data</Text>
-          </Pressable>
-        </View>
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Local Data</Text>
+        <Text style={styles.helperText}>
+          Reset the app to its initial state on this device.
+        </Text>
+
+        <Pressable style={styles.resetButton} onPress={confirmResetLocalData}>
+          <Text style={styles.resetButtonText}>Reset Local Data</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
@@ -202,9 +227,20 @@ const styles = StyleSheet.create({
     borderColor: "#e5e5e5",
     gap: 14,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
+  },
+  chevron: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#666",
   },
   addRow: {
     flexDirection: "row",
@@ -266,8 +302,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   lockedText: {
-  color: "#666",
-  fontWeight: "600",
+    color: "#666",
+    fontWeight: "600",
   },
   helperText: {
     color: "#666",

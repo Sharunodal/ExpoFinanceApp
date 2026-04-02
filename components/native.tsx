@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -8,7 +9,7 @@ import {
   View,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { formatDateToYmd, parseYmdToDate } from "../lib/date";
+import { parseYmdToDate, formatDateToYmd } from "../lib/date";
 
 type DateInputRowProps = {
   label: string;
@@ -35,36 +36,30 @@ export default function DateInputRow({
       <Text style={styles.label}>{label}</Text>
 
       <View style={styles.dateRow}>
-        {Platform.OS === "web" ? (
-          <TextInput
-            value={value}
-            onChangeText={onChange}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#888"
-            style={[styles.input, styles.dateInput]}
-            autoCapitalize="none"
-            // React Native Web passes this through to the browser input
-            {...({ type: "date" } as any)}
-          />
-        ) : (
-          <>
-            <TextInput
-              value={value}
-              editable={false}
-              style={[styles.input, styles.dateInput]}
-            />
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor="#888"
+          style={[styles.input, styles.dateInput]}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="numbers-and-punctuation"
+        />
 
-            <Pressable
-              style={styles.dateButton}
-              onPress={() => setShowPicker(true)}
-            >
-              <Text style={styles.dateButtonText}>Pick</Text>
-            </Pressable>
-          </>
-        )}
+        <Pressable
+          style={styles.dateButton}
+          onPress={() => setShowPicker(true)}
+        >
+          <Image
+            source={require("../assets/images/calendar.png")}
+            style={styles.dateButtonIcon}
+            resizeMode="contain"
+          />
+        </Pressable>
       </View>
 
-      {Platform.OS !== "web" && showPicker ? (
+      {showPicker ? (
         <DateTimePicker
           value={parseYmdToDate(value)}
           mode="date"
@@ -102,13 +97,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateButton: {
+    width: 48,
+    height: 48,
     backgroundColor: "#111",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  dateButtonText: {
-    color: "#fff",
-    fontWeight: "700",
+  dateButtonIcon: {
+    width: 22,
+    height: 22,
   },
 });

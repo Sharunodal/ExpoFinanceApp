@@ -27,6 +27,12 @@ import DateInputRow from "@/components/DateInput";
 
 type FilterPreset = "1d" | "7d" | "30d" | "custom";
 
+type CategoryGroup = {
+  category: ExpenseCategory;
+  expenses: ExpenseEntry[];
+  totalsByCurrency: Partial<Record<AppCurrency, number>>;
+};
+
 const currencies: AppCurrency[] = ["JPY", "EUR"];
 
 function normalizeDate(date: string) {
@@ -71,6 +77,7 @@ export default function FilterScreen() {
   const [selectedCurrencies, setSelectedCurrencies] = useState<AppCurrency[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<ExpenseCategory[]>([]);
   const [selectedTags, setSelectedTags] = useState<ExpenseTag[]>([]);
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
 
   const activeFrom = preset === "custom" ? customFrom : presetRange.from;
   const activeTo = preset === "custom" ? customTo : presetRange.to;
@@ -99,6 +106,13 @@ export default function FilterScreen() {
     );
   }
 
+  function toggleCategoryGroup(category: ExpenseCategory) {
+    setOpenCategories((current) => ({
+      ...current,
+      [category]: !current[category],
+    }));
+  }
+
   function clearFilters() {
     setPreset("7d");
     setCustomFrom("");
@@ -106,6 +120,7 @@ export default function FilterScreen() {
     setSelectedCurrencies([]);
     setSelectedCategories([]);
     setSelectedTags([]);
+    setOpenCategories({});
   }
 
   const filteredExpenses = useMemo(() => {
@@ -158,6 +173,26 @@ export default function FilterScreen() {
     () => getTotalsByCurrency(filteredExpenses),
     [filteredExpenses]
   );
+
+  const groupedExpenses = useMemo<CategoryGroup[]>(() => {
+    const groups = new Map<ExpenseCategory, ExpenseEntry[]>();
+
+    for (const expense of filteredExpenses) {
+      const current = groups.get(expense.category) ?? [];
+      current.push(expense);
+      groups.set(expense.category, current);
+    }
+
+    return Array.from(groups.entries())
+      .map(([category, categoryExpenses]) => ({
+        category,
+        expenses: categoryExpenses,
+        totalsByCurrency: getTotalsByCurrency(categoryExpenses),
+      }))
+      .sort((a, b) =>
+        formatCategoryName(a.category).localeCompare(formatCategoryName(b.category))
+      );
+  }, [filteredExpenses]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -316,29 +351,69 @@ export default function FilterScreen() {
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>
-          Matching Expenses ({filteredExpenses.length})
+          Matching Categories ({groupedExpenses.length})
         </Text>
 
-        {filteredExpenses.length === 0 ? (
+        {groupedExpenses.length === 0 ? (
           <Text style={styles.emptyText}>No matching expenses.</Text>
         ) : (
-          filteredExpenses.map((expense) => (
-            <View key={expense.id} style={styles.expenseRow}>
-              <View style={styles.expenseTextWrap}>
-                <Text style={styles.expenseCategory}>
-                  {formatCategoryName(expense.category)}
-                </Text>
-                <Text style={styles.expenseMeta}>
-                  {formatDisplayDate(expense.date)}
-                  {expense.tags.length > 0 ? ` • ${expense.tags.join(", ")}` : ""}
-                </Text>
-              </View>
+          groupedExpenses.map((group) => {
+            const isOpen = openCategories[group.category] ?? false;
 
-              <Text style={styles.expenseAmount}>
-                {formatCurrency(expense.amount, expense.currency)}
-              </Text>
-            </View>
-          ))
+            return (
+              <View key={group.category} style={styles.groupWrap}>
+                <Pressable
+                  style={styles.groupHeader}
+                  onPress={() => toggleCategoryGroup(group.category)}
+                >
+                  <View style={styles.groupHeaderLeft}>
+                    <Text style={styles.groupTitle}>
+                      {formatCategoryName(group.category)}
+                    </Text>
+                    <Text style={styles.groupMeta}>
+                      {group.expenses.length} item{group.expenses.length === 1 ? "" : "s"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.groupHeaderRight}>
+                    <View style={styles.groupTotals}>
+                      {(Object.keys(group.totalsByCurrency) as AppCurrency[]).map(
+                        (currency) => (
+                          <Text key={currency} style={styles.groupTotalText}>
+                            {formatCurrency(
+                              group.totalsByCurrency[currency] ?? 0,
+                              currency
+                            )}
+                          </Text>
+                        )
+                      )}
+                    </View>
+
+                    <Text style={styles.chevron}>{isOpen ? "▾" : "▸"}</Text>
+                  </View>
+                </Pressable>
+
+                {isOpen ? (
+                  <View style={styles.groupDetails}>
+                    {group.expenses.map((expense) => (
+                    <View key={expense.id} style={styles.expenseRow}>
+                      <View style={styles.expenseTextWrap}>
+                        <Text style={styles.expenseMeta}>
+                          {formatDisplayDate(expense.date)}
+                          {expense.tags.length > 0 ? ` • ${expense.tags.join(", ")}` : ""}
+                        </Text>
+                      </View>
+
+                      <Text style={styles.expenseAmount}>
+                        {formatCurrency(expense.amount, expense.currency)}
+                      </Text>
+                    </View>
+                  ))}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })
         )}
       </View>
     </ScrollView>
@@ -417,6 +492,61 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  groupWrap: {
+    borderWidth: 1,
+    borderColor: "#ececec",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#fff",
+  },
+  groupHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  groupHeaderLeft: {
+    flex: 1,
+  },
+  groupHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  groupTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  groupMeta: {
+    marginTop: 4,
+    fontSize: 13,
+    color: "#666",
+  },
+  groupTotals: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
+  groupTotalText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111",
+  },
+  chevron: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#666",
+  },
+  groupDetails: {
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+    paddingHorizontal: 14,
+    paddingVertical: 4,
   },
   expenseRow: {
     flexDirection: "row",

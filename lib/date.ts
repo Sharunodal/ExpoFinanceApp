@@ -5,17 +5,33 @@ export function formatDateToYmd(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export function parseYmdToDate(value: string) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, (month ?? 1) - 1, day ?? 1);
-}
-
 export function getTodayDateString() {
   return formatDateToYmd(new Date());
 }
 
 export function isValidYmdDate(value: string) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+}
+
+export function parseYmdToDate(value: string) {
+  if (!isValidYmdDate(value)) {
+    return new Date();
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 export function getPastDateString(daysBack: number) {
