@@ -30,7 +30,6 @@ export default function AddExpenseScreen() {
     addExpense,
     updateExpense,
     defaultCurrency,
-    setDefaultCurrency,
     categories,
     tags,
   } = useExpenses();
@@ -120,32 +119,6 @@ export default function AddExpenseScreen() {
       <Text style={styles.title}>
         {isEditMode ? "Edit Expense" : "Add Expense"}
       </Text>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>Default currency</Text>
-        <View style={styles.optionsWrap}>
-          {currencies.map((item) => {
-            const isSelected = item === defaultCurrency;
-
-            return (
-              <Pressable
-                key={`default-${item}`}
-                onPress={() => setDefaultCurrency(item)}
-                style={[styles.optionChip, isSelected && styles.optionChipSelected]}
-              >
-                <Text
-                  style={[
-                    styles.optionChipText,
-                    isSelected && styles.optionChipTextSelected,
-                  ]}
-                >
-                  {item}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
 
       <View style={styles.section}>
         <Text style={styles.label}>Amount</Text>

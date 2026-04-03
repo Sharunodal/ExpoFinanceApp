@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useExpenses } from "../../context/Expense";
 import { formatCategoryName } from "../../lib/format";
+import { AppCurrency } from "@/types/finance";
 
 export default function SettingsScreen() {
   const {
@@ -20,6 +21,8 @@ export default function SettingsScreen() {
     addTag,
     deleteTag,
     resetLocalData,
+    defaultCurrency,
+    setDefaultCurrency,
   } = useExpenses();
 
   const [newCategory, setNewCategory] = useState("");
@@ -27,6 +30,7 @@ export default function SettingsScreen() {
   const [error, setError] = useState("");
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
+  const currencies: AppCurrency[] = ["JPY", "EUR"];
 
   async function handleAddCategory() {
     const value = newCategory.trim().toLowerCase();
@@ -108,6 +112,36 @@ export default function SettingsScreen() {
       <Text style={styles.title}>Settings</Text>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Default Currency</Text>
+        <Text style={styles.helperText}>
+          Used as the default for new expenses and for charts unless conversion rates are applied.
+        </Text>
+
+        <View style={styles.optionsWrap}>
+          {currencies.map((currency) => {
+            const isSelected = currency === defaultCurrency;
+          
+            return (
+              <Pressable
+                key={currency}
+                onPress={() => setDefaultCurrency(currency)}
+                style={[styles.optionChip, isSelected && styles.optionChipSelected]}
+              >
+                <Text
+                  style={[
+                    styles.optionChipText,
+                    isSelected && styles.optionChipTextSelected,
+                  ]}
+                >
+                  {currency}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
 
       <View style={styles.card}>
         <Pressable
@@ -319,5 +353,26 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 16,
+  },
+    optionsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  optionChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#f1f1f1",
+  },
+  optionChipSelected: {
+    backgroundColor: "#111",
+  },
+  optionChipText: {
+    color: "#222",
+    fontWeight: "500",
+  },
+  optionChipTextSelected: {
+    color: "#fff",
   },
 });

@@ -13,94 +13,17 @@ import {
   formatCurrency,
   formatMonthLabel,
 } from "../../lib/format";
-import { AppCurrency, ExpenseEntry } from "../../types/finance";
+import { AppCurrency } from "../../types/finance";
 import { DEFAULT_APP_CURRENCY } from "../../constants";
+import {
+  getConvertedCategoryTotals,
+  getConvertedSpent,
+  getRateMap,
+  getTotalsByCurrency,
+  getMonthlyExpenses,
+} from "../../lib/conversion";
 
 const currencies: AppCurrency[] = ["JPY", "EUR"];
-
-function getMonthlyExpenses(expenses: ExpenseEntry[], month: string) {
-  return expenses.filter((expense) => expense.date.startsWith(month));
-}
-
-function getTotalsByCurrency(expenses: ExpenseEntry[]) {
-  const totals: Partial<Record<AppCurrency, number>> = {};
-
-  for (const expense of expenses) {
-    totals[expense.currency] = (totals[expense.currency] ?? 0) + expense.amount;
-  }
-
-  return totals;
-}
-
-function getRateMap(
-  rates: {
-    fromCurrency: AppCurrency;
-    toCurrency: AppCurrency;
-    rate: number;
-  }[]
-) {
-  const map: Partial<Record<string, number>> = {};
-
-  for (const rate of rates) {
-    map[`${rate.fromCurrency}->${rate.toCurrency}`] = rate.rate;
-  }
-
-  return map;
-}
-
-function getConvertedSpent(
-  expenses: ExpenseEntry[],
-  budgetCurrency: AppCurrency,
-  rateMap: Partial<Record<string, number>>
-) {
-  let total = 0;
-  const missingCurrencies = new Set<AppCurrency>();
-
-  for (const expense of expenses) {
-    if (expense.currency === budgetCurrency) {
-      total += expense.amount;
-      continue;
-    }
-
-    const rate = rateMap[`${expense.currency}->${budgetCurrency}`];
-
-    if (!rate || rate <= 0) {
-      missingCurrencies.add(expense.currency);
-      continue;
-    }
-
-    total += expense.amount * rate;
-  }
-
-  return {
-    convertedSpent: total,
-    missingCurrencies: Array.from(missingCurrencies),
-  };
-}
-
-function getConvertedCategoryTotals(
-  expenses: ExpenseEntry[],
-  budgetCurrency: AppCurrency,
-  rateMap: Partial<Record<string, number>>
-) {
-  const totals: Record<string, number> = {};
-
-  for (const expense of expenses) {
-    const convertedAmount =
-      expense.currency === budgetCurrency
-        ? expense.amount
-        : (rateMap[`${expense.currency}->${budgetCurrency}`] ?? 0) *
-          expense.amount;
-
-    if (convertedAmount <= 0) continue;
-
-    totals[expense.category] = (totals[expense.category] ?? 0) + convertedAmount;
-  }
-
-  return Object.entries(totals)
-    .filter(([, value]) => value > 0)
-    .sort((a, b) => b[1] - a[1]);
-}
 
 export default function SummaryScreen() {
   const {
@@ -114,6 +37,7 @@ export default function SummaryScreen() {
     saveConversionRate,
     goToPreviousMonth,
     goToNextMonth,
+    defaultCurrency,
   } = useExpenses();
 
   const [budgetInput, setBudgetInput] = useState(String(currentMonthBudget));
@@ -318,14 +242,31 @@ export default function SummaryScreen() {
                 </Text>
 
                 <Pressable
-                  style={styles.saveButton}
+                  style={isEditingBudget ? styles.secondaryButton : styles.saveButton}
                   onPress={() => {
+                    if (isEditingBudget) {
+                      setIsEditingBudget(false);
+                      setBudgetInput("");
+                      setBudgetCurrency(defaultCurrency);
+                      setBudgetError("");
+                      return;
+                    }
+                  
                     setBudgetInput("");
-                    setBudgetCurrency(DEFAULT_APP_CURRENCY);
+                    setBudgetCurrency(defaultCurrency);
+                    setBudgetError("");
                     setIsEditingBudget(true);
                   }}
                 >
-                  <Text style={styles.saveButtonText}>Set Budget</Text>
+                  <Text
+                    style={
+                      isEditingBudget
+                        ? styles.secondaryButtonText
+                        : styles.saveButtonText
+                    }
+                  >
+                    {isEditingBudget ? "Cancel" : "Set Budget"}
+                  </Text>
                 </Pressable>
               </>
             ) : (

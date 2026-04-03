@@ -62,6 +62,24 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
+        name="graph"
+        options={{
+          title: "Graph",
+          tabBarIcon: ({ size, focused }) => (
+            <Image
+              source={require("../../assets/images/chart.png")}
+              style={{
+                width: size,
+                height: size,
+                opacity: focused ? 1 : 0.8,
+              }}
+              resizeMode="contain"
+            />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
