@@ -1,14 +1,54 @@
-import { AppCurrency } from "../types/finance";
+import { AppCurrency, CurrencyDefinition } from "../types/finance";
 
-export function formatCurrency(value: number, currency: AppCurrency) {
-  const locale = currency === "JPY" ? "ja-JP" : undefined;
+export function getCurrencyDefinitionMap(currencies: CurrencyDefinition[]) {
+  return currencies.reduce<Record<string, CurrencyDefinition>>((map, currency) => {
+    map[currency.code] = currency;
+    return map;
+  }, {});
+}
 
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    minimumFractionDigits: currency === "JPY" ? 0 : 2,
-    maximumFractionDigits: currency === "JPY" ? 0 : 2,
-  }).format(value);
+function addThousandsSeparator(value: string, separator: string) {
+  if (!separator) return value;
+
+  return value.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+}
+
+export function formatCurrency(
+  value: number,
+  currency: AppCurrency,
+  currencies: CurrencyDefinition[]
+) {
+  const definition =
+    currencies.find((item) => item.code === currency) ??
+    currencies[0] ?? {
+      code: currency,
+      name: currency,
+      symbol: currency,
+      thousandsSeparator: ",",
+      decimalSeparator: ".",
+      fractionDigits: 2,
+      symbolPosition: "prefix" as const,
+      spaceBetweenAmountAndSymbol: false,
+    };
+
+  const absValue = Math.abs(value);
+  const fixed = absValue.toFixed(definition.fractionDigits);
+  const [integerPart, decimalPart = ""] = fixed.split(".");
+  const formattedInteger = addThousandsSeparator(
+    integerPart,
+    definition.thousandsSeparator
+  );
+  const formattedNumber =
+    definition.fractionDigits > 0 && definition.decimalSeparator
+      ? `${formattedInteger}${definition.decimalSeparator}${decimalPart}`
+      : formattedInteger;
+  const spacer = definition.spaceBetweenAmountAndSymbol ? " " : "";
+  const withSymbol =
+    definition.symbolPosition === "suffix"
+      ? `${formattedNumber}${spacer}${definition.symbol}`
+      : `${definition.symbol}${spacer}${formattedNumber}`;
+
+  return value < 0 ? `-${withSymbol}` : withSymbol;
 }
 
 export function formatMonthLabel(monthKey: string) {

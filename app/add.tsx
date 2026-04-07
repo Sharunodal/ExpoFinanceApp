@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { useExpenses } from "../context/Expense";
 import {
-  AppCurrency,
   ExpenseCategory,
   ExpenseEntry,
   ExpenseTag,
@@ -18,8 +17,6 @@ import {
 import { getTodayDateString, isValidYmdDate } from "@/lib/date";
 import { formatCategoryName } from "@/lib/format";
 import DateInputRow from "@/components/DateInput";
-
-const currencies: AppCurrency[] = ["JPY", "EUR"];
 
 export default function AddExpenseScreen() {
   const router = useRouter();
@@ -30,6 +27,7 @@ export default function AddExpenseScreen() {
     addExpense,
     updateExpense,
     defaultCurrency,
+    currencies,
     categories,
     tags,
   } = useExpenses();
@@ -40,9 +38,10 @@ export default function AddExpenseScreen() {
   );
 
   const isEditMode = Boolean(editingExpense);
+  const isMissingEditTarget = Boolean(params.id) && !editingExpense;
 
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState<AppCurrency>(defaultCurrency);
+  const [currency, setCurrency] = useState(defaultCurrency);
   const [category, setCategory] = useState<ExpenseCategory>("food");
   const [note, setNote] = useState("");
   const [date, setDate] = useState(getTodayDateString());
@@ -73,6 +72,11 @@ export default function AddExpenseScreen() {
   }
 
   async function handleSave() {
+    if (isMissingEditTarget) {
+      setError("This expense no longer exists.");
+      return;
+    }
+
     const parsedAmount = Number(amount.replace(",", "."));
 
     if (!amount.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -120,6 +124,15 @@ export default function AddExpenseScreen() {
         {isEditMode ? "Edit Expense" : "Add Expense"}
       </Text>
 
+      {isMissingEditTarget ? (
+        <View style={styles.missingCard}>
+          <Text style={styles.errorText}>This expense could not be found.</Text>
+          <Pressable style={styles.saveButton} onPress={() => router.back()}>
+            <Text style={styles.saveButtonText}>Back</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <View style={styles.section}>
         <Text style={styles.label}>Amount</Text>
         <TextInput
@@ -136,12 +149,12 @@ export default function AddExpenseScreen() {
         <Text style={styles.label}>Expense currency</Text>
         <View style={styles.optionsWrap}>
           {currencies.map((item) => {
-            const isSelected = item === currency;
+            const isSelected = item.code === currency;
 
             return (
               <Pressable
-                key={item}
-                onPress={() => setCurrency(item)}
+                key={item.code}
+                onPress={() => setCurrency(item.code)}
                 style={[styles.optionChip, isSelected && styles.optionChipSelected]}
               >
                 <Text
@@ -150,7 +163,7 @@ export default function AddExpenseScreen() {
                     isSelected && styles.optionChipTextSelected,
                   ]}
                 >
-                  {item}
+                  {item.code}
                 </Text>
               </Pressable>
             );
@@ -228,7 +241,7 @@ export default function AddExpenseScreen() {
       <Pressable
         style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
         onPress={handleSave}
-        disabled={isSaving}
+        disabled={isSaving || isMissingEditTarget}
       >
         <Text style={styles.saveButtonText}>
           {isSaving
@@ -254,6 +267,14 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 10,
+  },
+  missingCard: {
+    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "#fff4f4",
+    borderWidth: 1,
+    borderColor: "#f3c7c7",
   },
   label: {
     fontSize: 15,

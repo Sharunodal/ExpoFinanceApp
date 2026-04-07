@@ -1,4 +1,18 @@
-export type AppCurrency = "EUR" | "JPY";
+export type AppCurrency = string;
+
+export type CurrencySeparator = "," | "." | " " | "";
+export type CurrencySymbolPosition = "prefix" | "suffix";
+
+export interface CurrencyDefinition {
+  code: AppCurrency;
+  name: string;
+  symbol: string;
+  thousandsSeparator: CurrencySeparator;
+  decimalSeparator: "." | "," | "";
+  fractionDigits: number;
+  symbolPosition: CurrencySymbolPosition;
+  spaceBetweenAmountAndSymbol: boolean;
+}
 
 export type ExpenseCategory = string;
 export type ExpenseTag = string;

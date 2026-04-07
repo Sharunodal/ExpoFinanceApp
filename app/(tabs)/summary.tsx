@@ -23,8 +23,6 @@ import {
   getMonthlyExpenses,
 } from "../../lib/conversion";
 
-const currencies: AppCurrency[] = ["JPY", "EUR"];
-
 export default function SummaryScreen() {
   const {
     expenses,
@@ -38,6 +36,7 @@ export default function SummaryScreen() {
     goToPreviousMonth,
     goToNextMonth,
     defaultCurrency,
+    currencies,
   } = useExpenses();
 
   const [budgetInput, setBudgetInput] = useState(String(currentMonthBudget));
@@ -49,6 +48,8 @@ export default function SummaryScreen() {
   const [rateInputs, setRateInputs] = useState<Record<string, string>>({});
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackType, setFeedbackType] = useState<"success" | "error" | "">("");
+  const activeBudgetCurrency =
+    isEditingBudget ? budgetCurrency : currentMonthBudgetCurrency ?? budgetCurrency;
 
   useEffect(() => {
     setBudgetInput(currentMonthBudget != null ? String(currentMonthBudget) : "");
@@ -100,28 +101,35 @@ export default function SummaryScreen() {
   );
 
   const currenciesNeedingConversion = useMemo(
-    () => usedCurrencies.filter((currency) => currency !== budgetCurrency),
-    [usedCurrencies, budgetCurrency]
+    () => usedCurrencies.filter((currency) => currency !== activeBudgetCurrency),
+    [usedCurrencies, activeBudgetCurrency]
   );
 
   const shouldShowConversionRates = currenciesNeedingConversion.length > 0;
 
   const { convertedSpent, missingCurrencies } = useMemo(
-    () => getConvertedSpent(monthExpenses, budgetCurrency, rateMap),
-    [monthExpenses, budgetCurrency, rateMap]
+    () => getConvertedSpent(monthExpenses, activeBudgetCurrency, rateMap),
+    [monthExpenses, activeBudgetCurrency, rateMap]
   );
 
   const convertedCategoryTotals = useMemo(
-    () => getConvertedCategoryTotals(monthExpenses, budgetCurrency, rateMap),
-    [monthExpenses, budgetCurrency, rateMap]
+    () => getConvertedCategoryTotals(monthExpenses, activeBudgetCurrency, rateMap),
+    [monthExpenses, activeBudgetCurrency, rateMap]
   );
 
   const spentLabel = shouldShowConversionRates ? "Spent in budget currency" : "Spent";
 
-  const remaining = currentMonthBudget != null ? currentMonthBudget - convertedSpent : null;
+  const effectiveBudgetAmount =
+    isEditingBudget && budgetInput.trim()
+      ? Number(budgetInput.replace(",", "."))
+      : currentMonthBudget;
+  const remaining =
+    effectiveBudgetAmount != null && Number.isFinite(effectiveBudgetAmount)
+      ? effectiveBudgetAmount - convertedSpent
+      : null;
   const percentageUsed =
-    currentMonthBudget != null && currentMonthBudget > 0
-      ? Math.min((convertedSpent / currentMonthBudget) * 100, 100)
+    effectiveBudgetAmount != null && effectiveBudgetAmount > 0
+      ? Math.min((convertedSpent / effectiveBudgetAmount) * 100, 100)
       : 0;
 
   async function handleSaveBudget() {
@@ -274,7 +282,8 @@ export default function SummaryScreen() {
                 <Text style={styles.mainValue}>
                   {formatCurrency(
                     currentMonthBudget,
-                    currentMonthBudgetCurrency ?? DEFAULT_APP_CURRENCY
+                    currentMonthBudgetCurrency ?? DEFAULT_APP_CURRENCY,
+                    currencies
                   )}
                 </Text>
 
@@ -307,12 +316,12 @@ export default function SummaryScreen() {
 
                 <View style={styles.currencyRow}>
                   {currencies.map((item) => {
-                    const isSelected = item === budgetCurrency;
+                    const isSelected = item.code === budgetCurrency;
 
                     return (
                       <Pressable
-                        key={item}
-                        onPress={() => setBudgetCurrency(item)}
+                        key={item.code}
+                        onPress={() => setBudgetCurrency(item.code)}
                         style={[
                           styles.currencyChip,
                           isSelected && styles.currencyChipSelected,
@@ -324,7 +333,7 @@ export default function SummaryScreen() {
                             isSelected && styles.currencyChipTextSelected,
                           ]}
                         >
-                          {item}
+                          {item.code}
                         </Text>
                       </Pressable>
                     );
@@ -345,7 +354,7 @@ export default function SummaryScreen() {
               <View style={styles.statBlock}>
                 <Text style={styles.label}>{spentLabel}</Text>
                 <Text style={styles.statValue}>
-                  {formatCurrency(convertedSpent, budgetCurrency)}
+                  {formatCurrency(convertedSpent, activeBudgetCurrency, currencies)}
                 </Text>
               </View>
 
@@ -353,7 +362,7 @@ export default function SummaryScreen() {
                 <View style={styles.statBlock}>
                   <Text style={styles.label}>Remaining</Text>
                   <Text style={styles.statValue}>
-                    {formatCurrency(remaining, budgetCurrency)}
+                    {formatCurrency(remaining, activeBudgetCurrency, currencies)}
                   </Text>
                 </View>
               ) : null}
@@ -387,7 +396,7 @@ export default function SummaryScreen() {
                 <View key={currency} style={styles.categoryRow}>
                   <Text style={styles.categoryName}>{currency}</Text>
                   <Text style={styles.categoryAmount}>
-                    {formatCurrency(totalsByCurrency[currency] ?? 0, currency)}
+                    {formatCurrency(totalsByCurrency[currency] ?? 0, currency, currencies)}
                   </Text>
                 </View>
               ))
@@ -438,7 +447,7 @@ export default function SummaryScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              By Category ({budgetCurrency})
+               By Category ({activeBudgetCurrency})
             </Text>
 
             {convertedCategoryTotals.length === 0 ? (
@@ -453,7 +462,7 @@ export default function SummaryScreen() {
                   </Text>
 
                   <Text style={styles.categoryAmount}>
-                    {formatCurrency(total, budgetCurrency)}
+                    {formatCurrency(total, activeBudgetCurrency, currencies)}
                   </Text>
                 </View>
               ))

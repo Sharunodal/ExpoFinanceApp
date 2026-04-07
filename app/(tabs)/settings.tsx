@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,17 +10,110 @@ import {
   View,
 } from "react-native";
 import { useExpenses } from "../../context/Expense";
-import { formatCategoryName } from "../../lib/format";
-import { AppCurrency } from "@/types/finance";
+import { formatCategoryName, formatCurrency } from "../../lib/format";
+import {
+  CurrencyDefinition,
+  CurrencySeparator,
+  CurrencySymbolPosition,
+} from "@/types/finance";
+
+const THOUSANDS_SEPARATOR_OPTIONS: {
+  label: string;
+  value: CurrencySeparator;
+}[] = [
+  { label: "Comma", value: "," },
+  { label: "Dot", value: "." },
+  { label: "Space", value: " " },
+  { label: "None", value: "" },
+];
+
+const DECIMAL_SEPARATOR_OPTIONS: {
+  label: string;
+  value: CurrencyDefinition["decimalSeparator"];
+}[] = [
+  { label: "Dot", value: "." },
+  { label: "Comma", value: "," },
+  { label: "None", value: "" },
+];
+
+const SYMBOL_POSITION_OPTIONS: {
+  label: string;
+  value: CurrencySymbolPosition;
+}[] = [
+  { label: "Before", value: "prefix" },
+  { label: "After", value: "suffix" },
+];
+
+const SYMBOL_SPACING_OPTIONS = [
+  { label: "No Space", value: false },
+  { label: "Add Space", value: true },
+];
+
+const FRACTION_DIGIT_OPTIONS = [0, 1, 2, 3, 4];
+
+function getPreviewCurrency({
+  code,
+  name,
+  symbol,
+  thousandsSeparator,
+  decimalSeparator,
+  fractionDigits,
+  symbolPosition,
+  spaceBetweenAmountAndSymbol,
+}: {
+  code: string;
+  name: string;
+  symbol: string;
+  thousandsSeparator: CurrencySeparator;
+  decimalSeparator: CurrencyDefinition["decimalSeparator"];
+  fractionDigits: number;
+  symbolPosition: CurrencySymbolPosition;
+  spaceBetweenAmountAndSymbol: boolean;
+}): CurrencyDefinition {
+  return {
+    code: code.trim().toUpperCase() || "CUR",
+    name: name.trim() || "Custom Currency",
+    symbol: symbol.trim() || code.trim().toUpperCase() || "$",
+    thousandsSeparator,
+    decimalSeparator,
+    fractionDigits,
+    symbolPosition,
+    spaceBetweenAmountAndSymbol,
+  };
+}
+
+async function confirmAction(title: string, message: string) {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return window.confirm(`${title}\n\n${message}`);
+  }
+
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(title, message, [
+      {
+        text: "Cancel",
+        style: "cancel",
+        onPress: () => resolve(false),
+      },
+      {
+        text: "Confirm",
+        style: "destructive",
+        onPress: () => resolve(true),
+      },
+    ]);
+  });
+}
 
 export default function SettingsScreen() {
   const {
     categories,
     tags,
+    currencies,
     addCategory,
     deleteCategory,
     addTag,
     deleteTag,
+    addCurrency,
+    deleteCurrency,
     resetLocalData,
     defaultCurrency,
     setDefaultCurrency,
@@ -27,10 +121,46 @@ export default function SettingsScreen() {
 
   const [newCategory, setNewCategory] = useState("");
   const [newTag, setNewTag] = useState("");
+  const [newCurrencyCode, setNewCurrencyCode] = useState("");
+  const [newCurrencyName, setNewCurrencyName] = useState("");
+  const [newCurrencySymbol, setNewCurrencySymbol] = useState("");
+  const [thousandsSeparator, setThousandsSeparator] =
+    useState<CurrencySeparator>(",");
+  const [decimalSeparator, setDecimalSeparator] =
+    useState<CurrencyDefinition["decimalSeparator"]>(".");
+  const [fractionDigits, setFractionDigits] = useState(2);
+  const [symbolPosition, setSymbolPosition] =
+    useState<CurrencySymbolPosition>("prefix");
+  const [spaceBetweenAmountAndSymbol, setSpaceBetweenAmountAndSymbol] =
+    useState(false);
   const [error, setError] = useState("");
+  const [currenciesOpen, setCurrenciesOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
-  const currencies: AppCurrency[] = ["JPY", "EUR"];
+
+  const currencyPreview = useMemo(
+    () =>
+      getPreviewCurrency({
+        code: newCurrencyCode,
+        name: newCurrencyName,
+        symbol: newCurrencySymbol,
+        thousandsSeparator,
+        decimalSeparator,
+        fractionDigits,
+        symbolPosition,
+        spaceBetweenAmountAndSymbol,
+      }),
+    [
+      newCurrencyCode,
+      newCurrencyName,
+      newCurrencySymbol,
+      thousandsSeparator,
+      decimalSeparator,
+      fractionDigits,
+      symbolPosition,
+      spaceBetweenAmountAndSymbol,
+    ]
+  );
 
   async function handleAddCategory() {
     const value = newCategory.trim().toLowerCase();
@@ -58,53 +188,135 @@ export default function SettingsScreen() {
     setNewTag("");
   }
 
-  function confirmDeleteCategory(name: string) {
-    Alert.alert("Delete category", `Delete "${name}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          await deleteCategory(name);
-        },
-      },
-    ]);
+  async function handleAddCurrency() {
+    const code = newCurrencyCode.trim().toUpperCase();
+    const name = newCurrencyName.trim();
+    const symbol = newCurrencySymbol.trim();
+
+    if (!code) {
+      setError("Please enter a currency code.");
+      return;
+    }
+
+    if (!name) {
+      setError("Please enter a currency name.");
+      return;
+    }
+
+    if (!symbol) {
+      setError("Please enter a currency symbol.");
+      return;
+    }
+
+    if (fractionDigits > 0 && !decimalSeparator) {
+      setError("Choose a decimal separator when using decimal digits.");
+      return;
+    }
+
+    if (fractionDigits === 0 && decimalSeparator) {
+      setDecimalSeparator("");
+    }
+
+    try {
+      setError("");
+      await addCurrency({
+        code,
+        name,
+        symbol,
+        thousandsSeparator,
+        decimalSeparator: fractionDigits === 0 ? "" : decimalSeparator,
+        fractionDigits,
+        symbolPosition,
+        spaceBetweenAmountAndSymbol,
+      });
+      setNewCurrencyCode("");
+      setNewCurrencyName("");
+      setNewCurrencySymbol("");
+      setThousandsSeparator(",");
+      setDecimalSeparator(".");
+      setFractionDigits(2);
+      setSymbolPosition("prefix");
+      setSpaceBetweenAmountAndSymbol(false);
+    } catch (addError) {
+      console.error("Failed to add currency:", addError);
+      setError("Failed to save currency.");
+    }
   }
 
-  function confirmDeleteTag(name: string) {
-    Alert.alert("Delete tag", `Delete "${name}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          await deleteTag(name);
-        },
-      },
-    ]);
-  }
-
-  function confirmResetLocalData() {
-    Alert.alert(
-      "Reset local data",
-      "This will delete all expenses, budgets, conversion rates, custom categories, and tags stored on this device. Are you sure?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await resetLocalData();
-              setError("");
-            } catch (error) {
-              console.error("Failed to reset local data:", error);
-              setError("Failed to reset local data.");
-            }
-          },
-        },
-      ]
+  async function confirmDeleteCategory(name: string) {
+    const confirmed = await confirmAction(
+      "Delete category",
+      `Delete "${name}"?`
     );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteCategory(name);
+      setError("");
+    } catch (deleteError) {
+      console.error("Failed to delete category:", deleteError);
+      setError("Failed to delete category.");
+    }
+  }
+
+  async function confirmDeleteTag(name: string) {
+    const confirmed = await confirmAction("Delete tag", `Delete "${name}"?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteTag(name);
+      setError("");
+    } catch (deleteError) {
+      console.error("Failed to delete tag:", deleteError);
+      setError("Failed to delete tag.");
+    }
+  }
+
+  async function confirmDeleteCurrency(code: string) {
+    const confirmed = await confirmAction(
+      "Delete currency",
+      `Delete "${code}"?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteCurrency(code);
+      setError("");
+    } catch (deleteError) {
+      const message =
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to delete currency.";
+      setError(message);
+    }
+  }
+
+  async function confirmResetLocalData() {
+    const confirmed = await confirmAction(
+      "Reset local data",
+      "This will delete all expenses, budgets, conversion rates, and custom settings stored on this device. Are you sure?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await resetLocalData();
+      setError("");
+    } catch (resetError) {
+      console.error("Failed to reset local data:", resetError);
+      setError("Failed to reset local data.");
+    }
   }
 
   return (
@@ -114,33 +326,250 @@ export default function SettingsScreen() {
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Default Currency</Text>
-        <Text style={styles.helperText}>
-          Used as the default for new expenses and for charts unless conversion rates are applied.
-        </Text>
+        <Pressable
+          style={styles.sectionHeader}
+          onPress={() => setCurrenciesOpen((current) => !current)}
+        >
+          <Text style={styles.sectionTitle}>Currencies</Text>
+          <Text style={styles.chevron}>{currenciesOpen ? "v" : ">"}</Text>
+        </Pressable>
 
-        <View style={styles.optionsWrap}>
-          {currencies.map((currency) => {
-            const isSelected = currency === defaultCurrency;
-          
-            return (
-              <Pressable
-                key={currency}
-                onPress={() => setDefaultCurrency(currency)}
-                style={[styles.optionChip, isSelected && styles.optionChipSelected]}
-              >
-                <Text
+        {currenciesOpen ? (
+          <>
+            <Text style={styles.helperText}>
+              Add any local-only currency you want, including custom ones.
+            </Text>
+
+            <View style={styles.inputGrid}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Code</Text>
+                <TextInput
+                  value={newCurrencyCode}
+                  onChangeText={(value) => setNewCurrencyCode(value.toUpperCase())}
+                  placeholder="JPY"
+                  placeholderTextColor="#888"
+                  style={styles.input}
+                  autoCapitalize="characters"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Name</Text>
+                <TextInput
+                  value={newCurrencyName}
+                  onChangeText={setNewCurrencyName}
+                  placeholder="Japanese Yen"
+                  placeholderTextColor="#888"
+                  style={styles.input}
+                />
+              </View>
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Symbol</Text>
+              <TextInput
+                value={newCurrencySymbol}
+                onChangeText={setNewCurrencySymbol}
+                placeholder="€ / ¥"
+                placeholderTextColor="#888"
+                style={styles.input}
+              />
+            </View>
+
+            <Text style={styles.label}>Thousands separator</Text>
+            <View style={styles.optionsWrap}>
+              {THOUSANDS_SEPARATOR_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.label}
+                  onPress={() => setThousandsSeparator(option.value)}
                   style={[
-                    styles.optionChipText,
-                    isSelected && styles.optionChipTextSelected,
+                    styles.optionChip,
+                    thousandsSeparator === option.value && styles.optionChipSelected,
                   ]}
                 >
-                  {currency}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[
+                      styles.optionChipText,
+                      thousandsSeparator === option.value &&
+                        styles.optionChipTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Decimal places</Text>
+            <View style={styles.optionsWrap}>
+              {FRACTION_DIGIT_OPTIONS.map((option) => (
+                <Pressable
+                  key={option}
+                  onPress={() => {
+                    setFractionDigits(option);
+                    if (option === 0) {
+                      setDecimalSeparator("");
+                    } else if (!decimalSeparator) {
+                      setDecimalSeparator(".");
+                    }
+                  }}
+                  style={[
+                    styles.optionChip,
+                    fractionDigits === option && styles.optionChipSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.optionChipText,
+                      fractionDigits === option && styles.optionChipTextSelected,
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Decimal separator</Text>
+            <View style={styles.optionsWrap}>
+              {DECIMAL_SEPARATOR_OPTIONS.map((option) => {
+                const disabled = fractionDigits === 0 && option.value !== "";
+
+                return (
+                  <Pressable
+                    key={option.label}
+                    onPress={() => !disabled && setDecimalSeparator(option.value)}
+                    style={[
+                      styles.optionChip,
+                      decimalSeparator === option.value && styles.optionChipSelected,
+                      disabled && styles.optionChipDisabled,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.optionChipText,
+                        decimalSeparator === option.value &&
+                          styles.optionChipTextSelected,
+                        disabled && styles.optionChipTextDisabled,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={styles.label}>Symbol position</Text>
+            <View style={styles.optionsWrap}>
+              {SYMBOL_POSITION_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.value}
+                  onPress={() => setSymbolPosition(option.value)}
+                  style={[
+                    styles.optionChip,
+                    symbolPosition === option.value && styles.optionChipSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.optionChipText,
+                      symbolPosition === option.value &&
+                        styles.optionChipTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Spacing</Text>
+            <View style={styles.optionsWrap}>
+              {SYMBOL_SPACING_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.label}
+                  onPress={() => setSpaceBetweenAmountAndSymbol(option.value)}
+                  style={[
+                    styles.optionChip,
+                    spaceBetweenAmountAndSymbol === option.value &&
+                      styles.optionChipSelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.optionChipText,
+                      spaceBetweenAmountAndSymbol === option.value &&
+                        styles.optionChipTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={styles.previewCard}>
+              <Text style={styles.previewLabel}>Preview</Text>
+              <Text style={styles.previewValue}>
+                {formatCurrency(1234567.89, currencyPreview.code, [currencyPreview])}
+              </Text>
+            </View>
+
+            <Pressable style={styles.addButtonWide} onPress={handleAddCurrency}>
+              <Text style={styles.addButtonText}>Add Currency</Text>
+            </Pressable>
+
+            <View style={styles.listWrap}>
+              {currencies.map((currency) => {
+                const isDefault = currency.code === defaultCurrency;
+
+                return (
+                  <View key={currency.code} style={styles.currencyCard}>
+                    <View style={styles.currencyHeader}>
+                      <View style={styles.currencyHeaderText}>
+                        <Text style={styles.itemText}>
+                          {currency.code} · {currency.name}
+                        </Text>
+                        <Text style={styles.helperText}>
+                          {formatCurrency(1234567.89, currency.code, currencies)}
+                        </Text>
+                      </View>
+
+                      {isDefault ? (
+                        <Text style={styles.lockedText}>Default</Text>
+                      ) : (
+                        <Pressable
+                          style={styles.secondaryButton}
+                          onPress={() => setDefaultCurrency(currency.code)}
+                        >
+                          <Text style={styles.secondaryButtonText}>Set Default</Text>
+                        </Pressable>
+                      )}
+                    </View>
+
+                    <View style={styles.currencyFooter}>
+                      <Text style={styles.currencyMeta}>
+                        Symbol: {currency.symbol} ·
+                        {" "}
+                        {currency.symbolPosition === "prefix" ? "Before" : "After"}
+                        {" "}
+                        · Decimals: {currency.fractionDigits}
+                      </Text>
+
+                      <Pressable
+                        style={styles.deleteButton}
+                        onPress={() => confirmDeleteCurrency(currency.code)}
+                      >
+                        <Text style={styles.deleteButtonText}>Delete</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
       </View>
 
       <View style={styles.card}>
@@ -149,7 +578,7 @@ export default function SettingsScreen() {
           onPress={() => setCategoriesOpen((current) => !current)}
         >
           <Text style={styles.sectionTitle}>Categories</Text>
-          <Text style={styles.chevron}>{categoriesOpen ? "⌄" : ">"}</Text>
+          <Text style={styles.chevron}>{categoriesOpen ? "v" : ">"}</Text>
         </Pressable>
 
         {categoriesOpen ? (
@@ -159,6 +588,7 @@ export default function SettingsScreen() {
                 value={newCategory}
                 onChangeText={setNewCategory}
                 placeholder="New category"
+                placeholderTextColor="#888"
                 style={styles.input}
               />
               <Pressable style={styles.addButton} onPress={handleAddCategory}>
@@ -196,7 +626,7 @@ export default function SettingsScreen() {
           onPress={() => setTagsOpen((current) => !current)}
         >
           <Text style={styles.sectionTitle}>Tags</Text>
-          <Text style={styles.chevron}>{tagsOpen ? "⌄" : ">"}</Text>
+          <Text style={styles.chevron}>{tagsOpen ? "v" : ">"}</Text>
         </Pressable>
 
         {tagsOpen ? (
@@ -206,6 +636,7 @@ export default function SettingsScreen() {
                 value={newTag}
                 onChangeText={setNewTag}
                 placeholder="New tag"
+                placeholderTextColor="#888"
                 style={styles.input}
               />
               <Pressable style={styles.addButton} onPress={handleAddTag}>
@@ -276,6 +707,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#666",
   },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  inputGrid: {
+    gap: 12,
+  },
+  fieldGroup: {
+    gap: 8,
+  },
   addRow: {
     flexDirection: "row",
     gap: 10,
@@ -291,14 +733,57 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: "#fff",
   },
+  optionsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  optionChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#f1f1f1",
+  },
+  optionChipSelected: {
+    backgroundColor: "#111",
+  },
+  optionChipDisabled: {
+    opacity: 0.45,
+  },
+  optionChipText: {
+    color: "#222",
+    fontWeight: "500",
+  },
+  optionChipTextSelected: {
+    color: "#fff",
+  },
+  optionChipTextDisabled: {
+    color: "#777",
+  },
   addButton: {
     backgroundColor: "#111",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  addButtonWide: {
+    backgroundColor: "#111",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
   addButtonText: {
     color: "#fff",
+    fontWeight: "700",
+  },
+  secondaryButton: {
+    backgroundColor: "#f1f1f1",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  secondaryButtonText: {
+    color: "#222",
     fontWeight: "700",
   },
   listWrap: {
@@ -316,10 +801,59 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 12,
   },
+  currencyCard: {
+    backgroundColor: "#fafafa",
+    borderWidth: 1,
+    borderColor: "#ececec",
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+  },
+  currencyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  currencyHeaderText: {
+    flex: 1,
+    gap: 4,
+  },
+  currencyFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  currencyMeta: {
+    flex: 1,
+    color: "#555",
+    fontSize: 13,
+  },
   itemText: {
     flex: 1,
     fontSize: 16,
     fontWeight: "500",
+  },
+  helperText: {
+    color: "#666",
+    fontSize: 14,
+  },
+  previewCard: {
+    backgroundColor: "#f7f7f7",
+    borderRadius: 12,
+    padding: 14,
+    gap: 6,
+  },
+  previewLabel: {
+    color: "#666",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  previewValue: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#111",
   },
   deleteButton: {
     backgroundColor: "#ffe5e5",
@@ -339,10 +873,6 @@ const styles = StyleSheet.create({
     color: "#666",
     fontWeight: "600",
   },
-  helperText: {
-    color: "#666",
-    fontSize: 14,
-  },
   resetButton: {
     backgroundColor: "#b00020",
     borderRadius: 12,
@@ -353,26 +883,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 16,
-  },
-    optionsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  optionChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: "#f1f1f1",
-  },
-  optionChipSelected: {
-    backgroundColor: "#111",
-  },
-  optionChipText: {
-    color: "#222",
-    fontWeight: "500",
-  },
-  optionChipTextSelected: {
-    color: "#fff",
   },
 });

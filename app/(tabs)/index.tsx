@@ -39,6 +39,7 @@ export default function EntriesScreen() {
     goToPreviousMonth,
     goToNextMonth,
     deleteExpense,
+    currencies,
   } = useExpenses();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -129,7 +130,7 @@ export default function EntriesScreen() {
 
                     <View style={styles.entryRight}>
                       <Text style={styles.amountText}>
-                        {formatCurrency(expense.amount, expense.currency)}
+                        {formatCurrency(expense.amount, expense.currency, currencies)}
                       </Text>
                       <Text style={styles.chevron}>{isExpanded ? "˅" : ">"}</Text>
                     </View>

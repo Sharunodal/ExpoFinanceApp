@@ -10,7 +10,7 @@ export function getMonthlyExpenses(expenses: ExpenseEntry[], month: string) {
 }
 
 export function getTotalsByCurrency(expenses: ExpenseEntry[]) {
-  const totals: Partial<Record<AppCurrency, number>> = {};
+  const totals: Record<AppCurrency, number> = {};
 
   for (const expense of expenses) {
     totals[expense.currency] = (totals[expense.currency] ?? 0) + expense.amount;

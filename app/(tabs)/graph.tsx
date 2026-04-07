@@ -21,8 +21,6 @@ import {
 } from "../../lib/conversion";
 import { AppCurrency } from "../../types/finance";
 
-const currencies: AppCurrency[] = ["JPY", "EUR"];
-
 export default function GraphScreen() {
   const {
     expenses,
@@ -34,6 +32,7 @@ export default function GraphScreen() {
     currentMonthBudgetCurrency,
     goToPreviousMonth,
     goToNextMonth,
+    currencies,
   } = useExpenses();
 
   const { width } = useWindowDimensions();
@@ -180,12 +179,12 @@ export default function GraphScreen() {
 
         <View style={styles.optionsWrap}>
           {currencies.map((currency) => {
-            const isSelected = currency === graphCurrency;
+            const isSelected = currency.code === graphCurrency;
 
             return (
               <Pressable
-                key={currency}
-                onPress={() => setGraphCurrency(currency)}
+                key={currency.code}
+                onPress={() => setGraphCurrency(currency.code)}
                 style={[styles.optionChip, isSelected && styles.optionChipSelected]}
               >
                 <Text
@@ -194,7 +193,7 @@ export default function GraphScreen() {
                     isSelected && styles.optionChipTextSelected,
                   ]}
                 >
-                  {currency}
+                  {currency.code}
                 </Text>
               </Pressable>
             );
@@ -230,13 +229,13 @@ export default function GraphScreen() {
 
       <View style={styles.card}>
         <View style={styles.chartHeaderRow}>
-          <Text style={styles.sectionTitle}>
-            Cumulative Spending by Day ({graphCurrency})
-          </Text>
+            <Text style={styles.sectionTitle}>
+              Cumulative Spending by Day ({graphCurrency})
+            </Text>
 
           {convertedBudget != null ? (
             <Text style={styles.budgetLabel}>
-              Budget: {formatCurrency(convertedBudget, graphCurrency)}
+              Budget: {formatCurrency(convertedBudget, graphCurrency, currencies)}
             </Text>
           ) : null}
         </View>
@@ -295,7 +294,7 @@ export default function GraphScreen() {
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>Included total</Text>
                 <Text style={styles.statValue}>
-                  {formatCurrency(includedTotal, graphCurrency)}
+                  {formatCurrency(includedTotal, graphCurrency, currencies)}
                 </Text>
               </View>
 

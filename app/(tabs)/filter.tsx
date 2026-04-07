@@ -33,8 +33,6 @@ type CategoryGroup = {
   totalsByCurrency: Partial<Record<AppCurrency, number>>;
 };
 
-const currencies: AppCurrency[] = ["JPY", "EUR"];
-
 function normalizeDate(date: string) {
   return new Date(`${date}T00:00:00`).getTime();
 }
@@ -66,7 +64,7 @@ function getTotalsByCurrency(expenses: ExpenseEntry[]) {
 }
 
 export default function FilterScreen() {
-  const { expenses, categories, tags } = useExpenses();
+  const { expenses, categories, tags, currencies } = useExpenses();
 
   const [preset, setPreset] = useState<FilterPreset>("7d");
   const presetRange = getPresetRange(preset);
@@ -254,12 +252,12 @@ export default function FilterScreen() {
         <Text style={styles.sectionTitle}>Currencies</Text>
         <View style={styles.optionsWrap}>
           {currencies.map((currency) => {
-            const isSelected = selectedCurrencies.includes(currency);
+            const isSelected = selectedCurrencies.includes(currency.code);
 
             return (
               <Pressable
-                key={currency}
-                onPress={() => toggleCurrency(currency)}
+                key={currency.code}
+                onPress={() => toggleCurrency(currency.code)}
                 style={[styles.chip, isSelected && styles.chipSelected]}
               >
                 <Text
@@ -268,7 +266,7 @@ export default function FilterScreen() {
                     isSelected && styles.chipTextSelected,
                   ]}
                 >
-                  {currency}
+                  {currency.code}
                 </Text>
               </Pressable>
             );
@@ -342,7 +340,7 @@ export default function FilterScreen() {
             <View key={currency} style={styles.totalRow}>
               <Text style={styles.totalLabel}>{currency}</Text>
               <Text style={styles.totalValue}>
-                {formatCurrency(totalsByCurrency[currency] ?? 0, currency)}
+                {formatCurrency(totalsByCurrency[currency] ?? 0, currency, currencies)}
               </Text>
             </View>
           ))
@@ -382,7 +380,8 @@ export default function FilterScreen() {
                           <Text key={currency} style={styles.groupTotalText}>
                             {formatCurrency(
                               group.totalsByCurrency[currency] ?? 0,
-                              currency
+                              currency,
+                              currencies
                             )}
                           </Text>
                         )
@@ -405,7 +404,7 @@ export default function FilterScreen() {
                       </View>
 
                       <Text style={styles.expenseAmount}>
-                        {formatCurrency(expense.amount, expense.currency)}
+                        {formatCurrency(expense.amount, expense.currency, currencies)}
                       </Text>
                     </View>
                   ))}
