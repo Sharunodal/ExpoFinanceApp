@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useExpenses } from "../../context/Expense";
+import { confirmAction } from "../../lib/confirm";
 import { formatCategoryName, formatCurrency } from "../../lib/format";
 import {
   CurrencyDefinition,
@@ -80,27 +79,6 @@ function getPreviewCurrency({
     symbolPosition,
     spaceBetweenAmountAndSymbol,
   };
-}
-
-async function confirmAction(title: string, message: string) {
-  if (Platform.OS === "web" && typeof window !== "undefined") {
-    return window.confirm(`${title}\n\n${message}`);
-  }
-
-  return new Promise<boolean>((resolve) => {
-    Alert.alert(title, message, [
-      {
-        text: "Cancel",
-        style: "cancel",
-        onPress: () => resolve(false),
-      },
-      {
-        text: "Confirm",
-        style: "destructive",
-        onPress: () => resolve(true),
-      },
-    ]);
-  });
 }
 
 export default function SettingsScreen() {
@@ -303,7 +281,7 @@ export default function SettingsScreen() {
   async function confirmResetLocalData() {
     const confirmed = await confirmAction(
       "Reset local data",
-      "This will delete all expenses, budgets, conversion rates, and custom settings stored on this device. Are you sure?",
+      "This will delete all expenses, budgets, conversion rates, and custom settings stored on this device. Are you sure?"
     );
 
     if (!confirmed) {
@@ -370,7 +348,7 @@ export default function SettingsScreen() {
               <TextInput
                 value={newCurrencySymbol}
                 onChangeText={setNewCurrencySymbol}
-                placeholder="€ / ¥"
+                placeholder="EUR / YEN"
                 placeholderTextColor="#888"
                 style={styles.input}
               />
@@ -529,7 +507,7 @@ export default function SettingsScreen() {
                     <View style={styles.currencyHeader}>
                       <View style={styles.currencyHeaderText}>
                         <Text style={styles.itemText}>
-                          {currency.code} · {currency.name}
+                          {currency.code} | {currency.name}
                         </Text>
                         <Text style={styles.helperText}>
                           {formatCurrency(1234567.89, currency.code, currencies)}
@@ -550,11 +528,9 @@ export default function SettingsScreen() {
 
                     <View style={styles.currencyFooter}>
                       <Text style={styles.currencyMeta}>
-                        Symbol: {currency.symbol} ·
-                        {" "}
-                        {currency.symbolPosition === "prefix" ? "Before" : "After"}
-                        {" "}
-                        · Decimals: {currency.fractionDigits}
+                        Symbol: {currency.symbol} |{" "}
+                        {currency.symbolPosition === "prefix" ? "Before" : "After"} |{" "}
+                        Decimals: {currency.fractionDigits}
                       </Text>
 
                       <Pressable

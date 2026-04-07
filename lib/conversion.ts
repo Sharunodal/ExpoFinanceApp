@@ -130,37 +130,6 @@ export function getConvertedExpensesForMonth(
   };
 }
 
-export function getConvertedCategoryTotalsWithIgnored(
-  expenses: ExpenseEntry[],
-  targetCurrency: AppCurrency,
-  rateMap: Partial<Record<string, number>>
-) {
-  const totals: Record<string, number> = {};
-  const ignoredExpenses: ExpenseEntry[] = [];
-
-  for (const expense of expenses) {
-    if (expense.currency === targetCurrency) {
-      totals[expense.category] = (totals[expense.category] ?? 0) + expense.amount;
-      continue;
-    }
-
-    const rate = rateMap[`${expense.currency}->${targetCurrency}`];
-
-    if (!rate || rate <= 0) {
-      ignoredExpenses.push(expense);
-      continue;
-    }
-
-    totals[expense.category] =
-      (totals[expense.category] ?? 0) + expense.amount * rate;
-  }
-
-  return {
-    totals: Object.entries(totals).sort((a, b) => b[1] - a[1]),
-    ignoredExpenses,
-  };
-}
-
 type DailyGraphPoint = {
   day: number;
   value: number;

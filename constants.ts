@@ -1,6 +1,7 @@
 import { AppCurrency, CurrencyDefinition } from "./types/finance";
 
 export const DEFAULT_APP_CURRENCY: AppCurrency = "JPY";
+
 export const DEFAULT_CURRENCIES: CurrencyDefinition[] = [
   {
     code: "JPY",
@@ -10,7 +11,7 @@ export const DEFAULT_CURRENCIES: CurrencyDefinition[] = [
     decimalSeparator: "",
     fractionDigits: 0,
     symbolPosition: "prefix",
-    spaceBetweenAmountAndSymbol: true,
+    spaceBetweenAmountAndSymbol: false,
   },
   {
     code: "EUR",
@@ -23,6 +24,7 @@ export const DEFAULT_CURRENCIES: CurrencyDefinition[] = [
     spaceBetweenAmountAndSymbol: true,
   },
 ];
+
 export const DEFAULT_CATEGORIES = [
   "food",
   "transport",
@@ -32,4 +34,5 @@ export const DEFAULT_CATEGORIES = [
   "health",
   "other",
 ];
+
 export const DEFAULT_TAGS = ["credit-card", "subscription", "cash", "work"];

@@ -23,7 +23,8 @@ import {
   getTodayDateString,
   isValidYmdDate,
 } from "../../lib/date";
-import DateInputRow from "@/components/DateInput";
+import { getTotalsByCurrency } from "../../lib/conversion";
+import DateInputRow from "../../components/DateInput";
 
 type FilterPreset = "1d" | "7d" | "30d" | "custom";
 
@@ -51,16 +52,6 @@ function getPresetRange(preset: FilterPreset) {
   }
 
   return { from: "", to: "" };
-}
-
-function getTotalsByCurrency(expenses: ExpenseEntry[]) {
-  const totals: Partial<Record<AppCurrency, number>> = {};
-
-  for (const expense of expenses) {
-    totals[expense.currency] = (totals[expense.currency] ?? 0) + expense.amount;
-  }
-
-  return totals;
 }
 
 export default function FilterScreen() {
@@ -243,7 +234,7 @@ export default function FilterScreen() {
           </View>
         ) : (
           <Text style={styles.rangeText}>
-            {activeFrom} → {activeTo}
+            {activeFrom} {"->"} {activeTo}
           </Text>
         )}
       </View>
@@ -388,26 +379,26 @@ export default function FilterScreen() {
                       )}
                     </View>
 
-                    <Text style={styles.chevron}>{isOpen ? "▾" : "▸"}</Text>
+                    <Text style={styles.chevron}>{isOpen ? "v" : ">"}</Text>
                   </View>
                 </Pressable>
 
                 {isOpen ? (
                   <View style={styles.groupDetails}>
                     {group.expenses.map((expense) => (
-                    <View key={expense.id} style={styles.expenseRow}>
-                      <View style={styles.expenseTextWrap}>
-                        <Text style={styles.expenseMeta}>
-                          {formatDisplayDate(expense.date)}
-                          {expense.tags.length > 0 ? ` • ${expense.tags.join(", ")}` : ""}
+                      <View key={expense.id} style={styles.expenseRow}>
+                        <View style={styles.expenseTextWrap}>
+                          <Text style={styles.expenseMeta}>
+                            {formatDisplayDate(expense.date)}
+                            {expense.tags.length > 0 ? ` | ${expense.tags.join(", ")}` : ""}
+                          </Text>
+                        </View>
+
+                        <Text style={styles.expenseAmount}>
+                          {formatCurrency(expense.amount, expense.currency, currencies)}
                         </Text>
                       </View>
-
-                      <Text style={styles.expenseAmount}>
-                        {formatCurrency(expense.amount, expense.currency, currencies)}
-                      </Text>
-                    </View>
-                  ))}
+                    ))}
                   </View>
                 ) : null}
               </View>
@@ -558,10 +549,6 @@ const styles = StyleSheet.create({
   },
   expenseTextWrap: {
     flex: 1,
-  },
-  expenseCategory: {
-    fontSize: 16,
-    fontWeight: "600",
   },
   expenseMeta: {
     fontSize: 13,

@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import MonthSwitcher from "../../components/MonthSwitcher";
 import { useExpenses } from "../../context/Expense";
 import {
   formatCategoryName,
@@ -172,13 +173,8 @@ export default function SummaryScreen() {
     setRateError("");
 
     try {
-      await saveConversionRate(
-        selectedMonth,
-        fromCurrency,
-        budgetCurrency,
-        parsed
-      );
-      setFeedbackMessage(`Saved rate: ${fromCurrency} → ${budgetCurrency}`);
+      await saveConversionRate(selectedMonth, fromCurrency, budgetCurrency, parsed);
+      setFeedbackMessage(`Saved rate: ${fromCurrency} -> ${budgetCurrency}`);
       setFeedbackType("success");
     } catch (error) {
       console.error("Failed to save conversion rate:", error);
@@ -200,17 +196,11 @@ export default function SummaryScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{formatMonthLabel(selectedMonth)} Summary</Text>
 
-      <View style={styles.monthSwitcher}>
-        <Pressable style={styles.monthButton} onPress={goToPreviousMonth}>
-          <Text style={styles.monthButtonText}>← Prev</Text>
-        </Pressable>
-
-        <Text style={styles.monthLabel}>{formatMonthLabel(selectedMonth)}</Text>
-
-        <Pressable style={styles.monthButton} onPress={goToNextMonth}>
-          <Text style={styles.monthButtonText}>Next →</Text>
-        </Pressable>
-      </View>
+      <MonthSwitcher
+        month={selectedMonth}
+        onPrevious={goToPreviousMonth}
+        onNext={goToNextMonth}
+      />
 
       {feedbackMessage ? (
         <View
@@ -259,7 +249,7 @@ export default function SummaryScreen() {
                       setBudgetError("");
                       return;
                     }
-                  
+
                     setBudgetInput("");
                     setBudgetCurrency(defaultCurrency);
                     setBudgetError("");
@@ -288,8 +278,7 @@ export default function SummaryScreen() {
                 </Text>
 
                 <Text style={styles.label}>
-                  Budget currency:{" "}
-                  {currentMonthBudgetCurrency ?? DEFAULT_APP_CURRENCY}
+                  Budget currency: {currentMonthBudgetCurrency ?? DEFAULT_APP_CURRENCY}
                 </Text>
 
                 <Pressable
@@ -340,9 +329,7 @@ export default function SummaryScreen() {
                   })}
                 </View>
 
-                {budgetError ? (
-                  <Text style={styles.errorText}>{budgetError}</Text>
-                ) : null}
+                {budgetError ? <Text style={styles.errorText}>{budgetError}</Text> : null}
 
                 <Pressable style={styles.saveButton} onPress={handleSaveBudget}>
                   <Text style={styles.saveButtonText}>Save Budget</Text>
@@ -411,13 +398,13 @@ export default function SummaryScreen() {
 
               {currenciesNeedingConversion.map((currency) => {
                 const key = `${currency}->${budgetCurrency}`;
-              
+
                 return (
                   <View key={currency} style={styles.rateCard}>
                     <Text style={styles.categoryName}>
-                      {currency} → {budgetCurrency}
+                      {currency} {"->"} {budgetCurrency}
                     </Text>
-                
+
                     <View style={styles.rateRow}>
                       <TextInput
                         value={rateInputs[key] ?? ""}
@@ -447,7 +434,7 @@ export default function SummaryScreen() {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-               By Category ({activeBudgetCurrency})
+              By Category ({activeBudgetCurrency})
             </Text>
 
             {convertedCategoryTotals.length === 0 ? (
@@ -482,33 +469,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-  },
-  monthSwitcher: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    borderRadius: 14,
-    padding: 12,
-  },
-  monthButton: {
-    backgroundColor: "#f1f1f1",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  monthButtonText: {
-    fontWeight: "600",
-    color: "#222",
-  },
-  monthLabel: {
-    flex: 1,
-    textAlign: "center",
-    fontWeight: "700",
-    fontSize: 16,
   },
   feedbackBanner: {
     borderRadius: 12,

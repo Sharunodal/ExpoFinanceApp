@@ -1,15 +1,12 @@
-import { useState } from "react";
+import { useRef } from "react";
 import {
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { parseYmdToDate, formatDateToYmd } from "../lib/date";
 
 type DateInputRowProps = {
   label: string;
@@ -17,18 +14,26 @@ type DateInputRowProps = {
   onChange: (value: string) => void;
 };
 
+type DateInputElement = HTMLInputElement & {
+  showPicker?: () => void;
+};
+
 export default function DateInputRow({
   label,
   value,
   onChange,
 }: DateInputRowProps) {
-  const [showPicker, setShowPicker] = useState(false);
+  const hiddenDateInputRef = useRef<DateInputElement | null>(null);
 
-  function handleNativeDateChange(_: unknown, selectedDate?: Date) {
-    setShowPicker(false);
+  function openPicker() {
+    const input = hiddenDateInputRef.current;
+    if (!input) return;
 
-    if (!selectedDate) return;
-    onChange(formatDateToYmd(selectedDate));
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+    } else {
+      input.click();
+    }
   }
 
   return (
@@ -44,29 +49,26 @@ export default function DateInputRow({
           style={[styles.input, styles.dateInput]}
           autoCapitalize="none"
           autoCorrect={false}
-          keyboardType="numbers-and-punctuation"
         />
 
-        <Pressable
-          style={styles.dateButton}
-          onPress={() => setShowPicker(true)}
-        >
+        <Pressable style={styles.dateButton} onPress={openPicker}>
           <Image
             source={require("../assets/images/calendar.png")}
             style={styles.dateButtonIcon}
             resizeMode="contain"
           />
         </Pressable>
-      </View>
 
-      {showPicker ? (
-        <DateTimePicker
-          value={parseYmdToDate(value)}
-          mode="date"
-          display={Platform.OS === "ios" ? "inline" : "default"}
-          onChange={handleNativeDateChange}
+        <input
+          ref={hiddenDateInputRef}
+          type="date"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          tabIndex={-1}
+          aria-hidden="true"
+          style={webStyles.hiddenDateInput}
         />
-      ) : null}
+      </View>
     </View>
   );
 }
@@ -109,3 +111,14 @@ const styles = StyleSheet.create({
     height: 22,
   },
 });
+
+const webStyles: Record<string, React.CSSProperties> = {
+  hiddenDateInput: {
+    position: "absolute",
+    opacity: 0,
+    pointerEvents: "none",
+    width: "1px",
+    height: "1px",
+    left: "-9999px",
+  },
+};

@@ -16,7 +16,7 @@ import {
 } from "../types/finance";
 import { getTodayDateString, isValidYmdDate } from "@/lib/date";
 import { formatCategoryName } from "@/lib/format";
-import DateInputRow from "@/components/DateInput";
+import DateInputRow from "../components/DateInput";
 
 export default function AddExpenseScreen() {
   const router = useRouter();

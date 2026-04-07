@@ -7,14 +7,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  Platform,
-} from "react-native";
+import { Platform } from "react-native";
+import WebSecurityGate from "../components/WebSecurityGate";
 import {
   AppCurrency,
   ConversionRate,
@@ -88,6 +82,8 @@ interface ExpenseContextValue {
   setSelectedMonth: (month: string) => void;
 }
 
+type SecurityPhase = "checking" | "ready" | "locked" | "setup";
+
 const ExpenseContext = createContext<ExpenseContextValue | undefined>(undefined);
 
 function getCurrentMonthKey() {
@@ -119,8 +115,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   const [currencies, setCurrencies] = useState<CurrencyDefinition[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
-  const [securityPhase, setSecurityPhase] =
-    useState<"checking" | "ready" | "locked" | "setup">("checking");
+  const [securityPhase, setSecurityPhase] = useState<SecurityPhase>("checking");
   const [passphraseInput, setPassphraseInput] = useState("");
   const [securityError, setSecurityError] = useState("");
   const [isUnlocking, setIsUnlocking] = useState(false);
@@ -448,94 +443,16 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   );
 
   if (Platform.OS === "web" && securityPhase !== "ready") {
-    const isWebSecure =
-      typeof window !== "undefined" &&
-      (window.location.protocol === "https:" ||
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1");
-
-    if (!isWebSecure) {
-      return (
-        <View style={securityStyles.screen}>
-          <View style={securityStyles.card}>
-            <Text style={securityStyles.title}>HTTPS Required</Text>
-            <Text style={securityStyles.body}>
-              The web app only runs on HTTPS so local expense data can be protected
-              with the browser&apos;s secure crypto APIs.
-            </Text>
-          </View>
-        </View>
-      );
-    }
-
-    if (securityPhase === "checking") {
-      return (
-        <View style={securityStyles.screen}>
-          <View style={securityStyles.card}>
-            <Text style={securityStyles.title}>Preparing Local Storage</Text>
-            <Text style={securityStyles.body}>
-              Checking your local-only encrypted storage.
-            </Text>
-          </View>
-        </View>
-      );
-    }
-
-    const isSetup = securityPhase === "setup";
-
     return (
-      <View style={securityStyles.screen}>
-        <View style={securityStyles.card}>
-          <Text style={securityStyles.title}>
-            {isSetup ? "Secure Local Storage" : "Unlock Local Data"}
-          </Text>
-          <Text style={securityStyles.body}>
-            {isSetup
-              ? "Set a passphrase to encrypt your expense data in this browser. The passphrase never leaves your device."
-              : "Enter your passphrase to decrypt your locally stored expense data in this browser."}
-          </Text>
-          <TextInput
-            value={passphraseInput}
-            onChangeText={setPassphraseInput}
-            secureTextEntry
-            placeholder={isSetup ? "Create passphrase" : "Enter passphrase"}
-            placeholderTextColor="#888"
-            style={securityStyles.input}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {securityError ? (
-            <Text style={securityStyles.error}>{securityError}</Text>
-          ) : null}
-          <Pressable
-            style={[
-              securityStyles.button,
-              isUnlocking && securityStyles.buttonDisabled,
-            ]}
-            onPress={handleUnlock}
-            disabled={isUnlocking}
-          >
-            <Text style={securityStyles.buttonText}>
-              {isUnlocking
-                ? "Working..."
-                : isSetup
-                ? "Create Passphrase"
-                : "Unlock"}
-            </Text>
-          </Pressable>
-          {!isSetup ? (
-            <Pressable
-              style={securityStyles.secondaryButton}
-              onPress={handleForgotPassphrase}
-              disabled={isUnlocking}
-            >
-              <Text style={securityStyles.secondaryButtonText}>
-                Forgot Passphrase? Reset Local Data
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
+      <WebSecurityGate
+        securityPhase={securityPhase}
+        passphraseInput={passphraseInput}
+        securityError={securityError}
+        isUnlocking={isUnlocking}
+        onChangePassphrase={setPassphraseInput}
+        onUnlock={handleUnlock}
+        onForgotPassphrase={handleForgotPassphrase}
+      />
     );
   }
 
@@ -551,68 +468,3 @@ export function useExpenses() {
 
   return context;
 }
-
-const securityStyles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#f6f7f9",
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    gap: 14,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#111",
-  },
-  body: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#4b5563",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: "#fff",
-  },
-  error: {
-    color: "#b42318",
-    fontSize: 14,
-  },
-  button: {
-    backgroundColor: "#111",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  secondaryButton: {
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    backgroundColor: "#f3f4f6",
-  },
-  secondaryButtonText: {
-    color: "#222",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-});

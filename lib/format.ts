@@ -1,12 +1,5 @@
 import { AppCurrency, CurrencyDefinition } from "../types/finance";
 
-export function getCurrencyDefinitionMap(currencies: CurrencyDefinition[]) {
-  return currencies.reduce<Record<string, CurrencyDefinition>>((map, currency) => {
-    map[currency.code] = currency;
-    return map;
-  }, {});
-}
-
 function addThousandsSeparator(value: string, separator: string) {
   if (!separator) return value;
 

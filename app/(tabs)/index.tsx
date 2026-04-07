@@ -1,14 +1,9 @@
 import { Link, useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import MonthSwitcher from "../../components/MonthSwitcher";
 import { useExpenses } from "../../context/Expense";
+import { confirmAction } from "../../lib/confirm";
 import {
   formatCategoryName,
   formatCurrency,
@@ -50,22 +45,22 @@ export default function EntriesScreen() {
 
   const groupedExpenses = groupExpensesByDate(selectedMonthExpenses);
 
-  function handleDelete(id: string) {
-    Alert.alert("Delete entry", "Are you sure you want to delete this entry?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteExpense(id);
-            setExpandedId((current) => (current === id ? null : current));
-          } catch (error) {
-            console.error("Failed to delete expense:", error);
-          }
-        },
-      },
-    ]);
+  async function handleDelete(id: string) {
+    const confirmed = await confirmAction(
+      "Delete entry",
+      "Are you sure you want to delete this entry?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteExpense(id);
+      setExpandedId((current) => (current === id ? null : current));
+    } catch (error) {
+      console.error("Failed to delete expense:", error);
+    }
   }
 
   function toggleExpanded(id: string) {
@@ -87,17 +82,11 @@ export default function EntriesScreen() {
         </Link>
       </View>
 
-      <View style={styles.monthSwitcher}>
-        <Pressable style={styles.monthButton} onPress={goToPreviousMonth}>
-          <Text style={styles.monthButtonText}>← Prev</Text>
-        </Pressable>
-
-        <Text style={styles.monthLabel}>{formatMonthLabel(selectedMonth)}</Text>
-
-        <Pressable style={styles.monthButton} onPress={goToNextMonth}>
-          <Text style={styles.monthButtonText}>Next →</Text>
-        </Pressable>
-      </View>
+      <MonthSwitcher
+        month={selectedMonth}
+        onPrevious={goToPreviousMonth}
+        onNext={goToNextMonth}
+      />
 
       {isLoading ? (
         <View style={styles.emptyCard}>
@@ -132,7 +121,7 @@ export default function EntriesScreen() {
                       <Text style={styles.amountText}>
                         {formatCurrency(expense.amount, expense.currency, currencies)}
                       </Text>
-                      <Text style={styles.chevron}>{isExpanded ? "˅" : ">"}</Text>
+                      <Text style={styles.chevron}>{isExpanded ? "v" : ">"}</Text>
                     </View>
                   </Pressable>
 
@@ -224,33 +213,6 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: "#fff",
     fontWeight: "600",
-  },
-  monthSwitcher: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    borderRadius: 14,
-    padding: 12,
-  },
-  monthButton: {
-    backgroundColor: "#f1f1f1",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  monthButtonText: {
-    fontWeight: "600",
-    color: "#222",
-  },
-  monthLabel: {
-    flex: 1,
-    textAlign: "center",
-    fontWeight: "700",
-    fontSize: 16,
   },
   daySection: {
     gap: 10,

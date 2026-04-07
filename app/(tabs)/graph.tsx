@@ -8,11 +8,9 @@ import {
   View,
 } from "react-native";
 import { LineChart } from "react-native-gifted-charts";
+import MonthSwitcher from "../../components/MonthSwitcher";
 import { useExpenses } from "../../context/Expense";
-import {
-  formatCurrency,
-  formatMonthLabel,
-} from "../../lib/format";
+import { formatCurrency, formatMonthLabel } from "../../lib/format";
 import {
   getConvertedExpensesForMonth,
   getCumulativeDailyTotals,
@@ -53,12 +51,7 @@ export default function GraphScreen() {
   );
 
   const { convertedExpenses, ignoredExpenses } = useMemo(
-    () =>
-      getConvertedExpensesForMonth(
-        monthExpenses,
-        graphCurrency,
-        rateMap
-      ),
+    () => getConvertedExpensesForMonth(monthExpenses, graphCurrency, rateMap),
     [monthExpenses, graphCurrency, rateMap]
   );
 
@@ -67,17 +60,19 @@ export default function GraphScreen() {
     [convertedExpenses, selectedMonth]
   );
 
-  const chartData = useMemo(() => {
-    return cumulativePoints.map((point) => ({
-      value: Number(point.value.toFixed(2)),
-      label:
-        point.day === 1 ||
-        point.day % 5 === 0 ||
-        point.day === cumulativePoints.length
-          ? String(point.day)
-          : "",
-    }));
-  }, [cumulativePoints]);
+  const chartData = useMemo(
+    () =>
+      cumulativePoints.map((point) => ({
+        value: Number(point.value.toFixed(2)),
+        label:
+          point.day === 1 ||
+          point.day % 5 === 0 ||
+          point.day === cumulativePoints.length
+            ? String(point.day)
+            : "",
+      })),
+    [cumulativePoints]
+  );
 
   const convertedBudget = useMemo(() => {
     if (currentMonthBudget == null || currentMonthBudgetCurrency == null) {
@@ -162,17 +157,11 @@ export default function GraphScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>{formatMonthLabel(selectedMonth)} Graph</Text>
 
-      <View style={styles.monthSwitcher}>
-        <Pressable style={styles.monthButton} onPress={goToPreviousMonth}>
-          <Text style={styles.monthButtonText}>← Prev</Text>
-        </Pressable>
-
-        <Text style={styles.monthLabel}>{formatMonthLabel(selectedMonth)}</Text>
-
-        <Pressable style={styles.monthButton} onPress={goToNextMonth}>
-          <Text style={styles.monthButtonText}>Next →</Text>
-        </Pressable>
-      </View>
+      <MonthSwitcher
+        month={selectedMonth}
+        onPrevious={goToPreviousMonth}
+        onNext={goToNextMonth}
+      />
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Graph Currency</Text>
@@ -229,9 +218,9 @@ export default function GraphScreen() {
 
       <View style={styles.card}>
         <View style={styles.chartHeaderRow}>
-            <Text style={styles.sectionTitle}>
-              Cumulative Spending by Day ({graphCurrency})
-            </Text>
+          <Text style={styles.sectionTitle}>
+            Cumulative Spending by Day ({graphCurrency})
+          </Text>
 
           {convertedBudget != null ? (
             <Text style={styles.budgetLabel}>
@@ -330,33 +319,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-  },
-  monthSwitcher: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#e5e5e5",
-    borderRadius: 14,
-    padding: 12,
-  },
-  monthButton: {
-    backgroundColor: "#f1f1f1",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  monthButtonText: {
-    fontWeight: "600",
-    color: "#222",
-  },
-  monthLabel: {
-    flex: 1,
-    textAlign: "center",
-    fontWeight: "700",
-    fontSize: 16,
   },
   card: {
     backgroundColor: "#fff",
