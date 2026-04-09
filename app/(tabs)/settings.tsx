@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -82,6 +83,7 @@ function getPreviewCurrency({
 }
 
 export default function SettingsScreen() {
+  const isWeb = Platform.OS === "web";
   const {
     categories,
     tags,
@@ -95,6 +97,9 @@ export default function SettingsScreen() {
     resetLocalData,
     defaultCurrency,
     setDefaultCurrency,
+    encryptionEnabled,
+    enableEncryption,
+    disableEncryption,
   } = useExpenses();
 
   const [newCategory, setNewCategory] = useState("");
@@ -115,6 +120,8 @@ export default function SettingsScreen() {
   const [currenciesOpen, setCurrenciesOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
+  const [encryptionPassphrase, setEncryptionPassphrase] = useState("");
+  const [showEncryptionSetup, setShowEncryptionSetup] = useState(false);
 
   const currencyPreview = useMemo(
     () =>
@@ -294,6 +301,42 @@ export default function SettingsScreen() {
     } catch (resetError) {
       console.error("Failed to reset local data:", resetError);
       setError("Failed to reset local data.");
+    }
+  }
+
+  async function handleEnableEncryption() {
+    if (encryptionPassphrase.length < 8) {
+      setError("Passphrase must be at least 8 characters long.");
+      return;
+    }
+
+    try {
+      setError("");
+      await enableEncryption(encryptionPassphrase);
+      setEncryptionPassphrase("");
+      setShowEncryptionSetup(false);
+    } catch (enableError) {
+      console.error("Failed to enable encryption:", enableError);
+      setError("Failed to enable encryption.");
+    }
+  }
+
+  async function handleDisableEncryption() {
+    const confirmed = await confirmAction(
+      "Disable encryption",
+      "This will decrypt your data and store it unencrypted. Anyone with access to this device will be able to read your expense data. Are you sure?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setError("");
+      await disableEncryption();
+    } catch (disableError) {
+      console.error("Failed to disable encryption:", disableError);
+      setError("Failed to disable encryption.");
     }
   }
 
@@ -638,6 +681,74 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Data Security</Text>
+        <Text style={styles.helperText}>
+          {isWeb
+            ? encryptionEnabled
+              ? "Your expense data is encrypted with a passphrase. You can disable encryption to store data in plain text."
+              : "Your expense data is stored unencrypted. Enable encryption to protect your data with a passphrase."
+            : "Your expense data is stored locally on this device using the native encrypted database setup."}
+        </Text>
+
+        {isWeb ? (
+          <>
+            {encryptionEnabled ? (
+              <Pressable style={styles.resetButton} onPress={handleDisableEncryption}>
+                <Text style={styles.resetButtonText}>Disable Encryption</Text>
+              </Pressable>
+            ) : (
+              <>
+                {!showEncryptionSetup ? (
+                  <Pressable
+                    style={styles.addButtonWide}
+                    onPress={() => setShowEncryptionSetup(true)}
+                  >
+                    <Text style={styles.addButtonText}>Enable Encryption</Text>
+                  </Pressable>
+                ) : (
+                  <>
+                    <Text style={styles.label}>Create Passphrase</Text>
+                    <Text style={styles.helperText}>
+                      Choose a strong passphrase to encrypt your expense data. This passphrase will be required to access your data.
+                    </Text>
+                    <TextInput
+                      value={encryptionPassphrase}
+                      onChangeText={setEncryptionPassphrase}
+                      secureTextEntry
+                      placeholder="Enter passphrase (min 8 characters)"
+                      placeholderTextColor="#888"
+                      style={styles.input}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <View style={styles.buttonRow}>
+                      <Pressable
+                        style={[styles.button, styles.cancelButton]}
+                        onPress={() => {
+                          setShowEncryptionSetup(false);
+                          setEncryptionPassphrase("");
+                        }}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.button, styles.confirmButton]}
+                        onPress={handleEnableEncryption}
+                      >
+                        <Text style={styles.confirmButtonText}>Enable Encryption</Text>
+                      </Pressable>
+                    </View>
+                  </>
+                )}
+              </>
+            )}
+          </>
+        ) : (
+          <Text style={styles.lockedText}>Always On</Text>
+        )}
+      </View>
+
+      <View style={styles.card}>
         <Text style={styles.sectionTitle}>Local Data</Text>
         <Text style={styles.helperText}>
           Reset the app to its initial state on this device.
@@ -859,5 +970,30 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "700",
     fontSize: 16,
+  },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 8,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#f1f1f1",
+  },
+  cancelButtonText: {
+    color: "#666",
+    fontWeight: "600",
+  },
+  confirmButton: {
+    backgroundColor: "#111",
+  },
+  confirmButtonText: {
+    color: "#fff",
+    fontWeight: "600",
   },
 });

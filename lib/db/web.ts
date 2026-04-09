@@ -153,6 +153,43 @@ function readLegacyState(): AppDbState {
   }
 }
 
+async function readEncryptionSetting(): Promise<boolean> {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  // If passphrase exists, encryption is enabled
+  if (currentPassphrase) {
+    return true;
+  }
+
+  // Check legacy unencrypted storage
+  const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (legacyRaw) {
+    try {
+      const legacyState = JSON.parse(legacyRaw) as Partial<AppDbState>;
+      return legacyState.settings?.encryptionEnabled ?? false;
+    } catch {
+      // If legacy can't be parsed, assume no encryption
+      return false;
+    }
+  }
+
+  // Check encrypted storage
+  const encryptedRaw = window.localStorage.getItem(SECURE_STORAGE_KEY);
+  if (encryptedRaw) {
+    try {
+      const payload = JSON.parse(encryptedRaw) as Partial<EncryptedPayload>;
+      // If there is encrypted data, encryption was enabled
+      return payload.version === 1 && typeof payload.salt === "string";
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+}
+
 async function writeEncryptedState(state: AppDbState, passphrase: string) {
   window.localStorage.setItem(
     SECURE_STORAGE_KEY,
@@ -163,6 +200,14 @@ async function writeEncryptedState(state: AppDbState, passphrase: string) {
 async function readState(): Promise<AppDbState> {
   if (typeof window === "undefined") {
     return getDefaultState();
+  }
+
+  // Check if encryption is enabled
+  const encryptionEnabled = await readEncryptionSetting();
+
+  if (!encryptionEnabled) {
+    // Read from legacy unencrypted storage
+    return readLegacyState();
   }
 
   if (!currentPassphrase) {
@@ -187,11 +232,22 @@ async function writeState(state: AppDbState) {
     return;
   }
 
+  const encryptionEnabled = state.settings.encryptionEnabled;
+
+  if (!encryptionEnabled) {
+    // Write to legacy unencrypted storage
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.removeItem(SECURE_STORAGE_KEY);
+    currentPassphrase = null;
+    return;
+  }
+
   if (!currentPassphrase) {
     throw new Error("LOCAL_SECURITY_UNLOCK_REQUIRED");
   }
 
   await writeEncryptedState(state, currentPassphrase);
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
 export async function initDb() {
@@ -370,11 +426,18 @@ export async function deleteTag(name: string) {
 
 export async function resetLocalData() {
   const state = getDefaultState();
+  state.settings.encryptionEnabled = await readEncryptionSetting();
   await writeState(state);
 }
 
 export async function getLocalSecurityState() {
   if (typeof window === "undefined") {
+    return { phase: "ready" as const, requiresPassphrase: false };
+  }
+
+  const encryptionEnabled = await readEncryptionSetting();
+
+  if (!encryptionEnabled) {
     return { phase: "ready" as const, requiresPassphrase: false };
   }
 
@@ -410,6 +473,7 @@ export async function unlockLocalSecurity(passphrase: string) {
   }
 
   const initialState = readLegacyState();
+  initialState.settings.encryptionEnabled = true;
   await writeEncryptedState(initialState, value);
   window.localStorage.removeItem(LEGACY_STORAGE_KEY);
   currentPassphrase = value;
@@ -423,4 +487,54 @@ export async function resetLocalSecurity() {
   currentPassphrase = null;
   window.localStorage.removeItem(SECURE_STORAGE_KEY);
   window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+}
+
+export async function enableEncryption(passphrase: string) {
+  const value = passphrase.trim();
+
+  if (value.length < 8) {
+    throw new Error("Passphrase must be at least 8 characters long.");
+  }
+
+  // Read current unencrypted state
+  const currentState = readLegacyState();
+  currentState.settings.encryptionEnabled = true;
+
+  // Write encrypted
+  await writeEncryptedState(currentState, value);
+  window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+  currentPassphrase = value;
+}
+
+export async function disableEncryption() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  // Read current encrypted state
+  if (!currentPassphrase) {
+    throw new Error("LOCAL_SECURITY_UNLOCK_REQUIRED");
+  }
+
+  const cipherText = getSecureCipherText();
+  if (!cipherText) {
+    throw new Error("No encrypted data found");
+  }
+
+  const currentState = await decryptState(cipherText, currentPassphrase);
+  if (!currentState) {
+    throw new Error("Failed to decrypt current data");
+  }
+
+  // Disable encryption in the state
+  currentState.settings.encryptionEnabled = false;
+
+  // Write unencrypted
+  window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(currentState));
+  window.localStorage.removeItem(SECURE_STORAGE_KEY);
+  currentPassphrase = null;
+}
+
+export async function getEncryptionEnabled(): Promise<boolean> {
+  return await readEncryptionSetting();
 }

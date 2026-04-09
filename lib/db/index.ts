@@ -26,3 +26,6 @@ export const resetLocalData = impl.resetLocalData;
 export const getLocalSecurityState = impl.getLocalSecurityState;
 export const unlockLocalSecurity = impl.unlockLocalSecurity;
 export const resetLocalSecurity = impl.resetLocalSecurity;
+export const enableEncryption = impl.enableEncryption;
+export const disableEncryption = impl.disableEncryption;
+export const getEncryptionEnabled = impl.getEncryptionEnabled;

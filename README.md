@@ -15,7 +15,7 @@ Live web app: https://sharunodal.github.io/ExpoFinanceApp/
 ## Privacy and storage
 
 - The app is intended to be offline-first and local-only
-- Web data is encrypted in the browser and requires a passphrase
+- Web data can be set to be encrypted or not in the settings for the web version for convenience of testing, mobile is always encrypted at the moment.
 - Mobile data stays on-device
 - No external database is required for normal use
 

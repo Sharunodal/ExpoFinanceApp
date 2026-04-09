@@ -20,6 +20,7 @@ import {
 } from "../../types/finance";
 import {
   getTodayDateString,
+  getPastDateString,
   getStartOfCurrentWeekDateString,
   getStartOfCurrentMonthDateString,
   isValidYmdDate,
@@ -27,7 +28,7 @@ import {
 import { getTotalsByCurrency } from "../../lib/conversion";
 import DateInputRow from "../../components/DateInput";
 
-type FilterPreset = "today" | "week" | "month" | "custom";
+type FilterPreset = "today" | "7d" | "week" | "30d" | "month" | "custom";
 
 type CategoryGroup = {
   category: ExpenseCategory;
@@ -45,8 +46,14 @@ function getPresetRange(preset: FilterPreset) {
   if (preset === "today") {
     return { from: today, to: today };
   }
+  if (preset === "7d") {
+    return { from: getPastDateString(7), to: today };
+  }
   if (preset === "week") {
     return { from: getStartOfCurrentWeekDateString(), to: today };
+  }
+  if (preset === "30d") {
+    return { from: getPastDateString(30), to: today };
   }
   if (preset === "month") {
     return { from: getStartOfCurrentMonthDateString(), to: today };
@@ -194,8 +201,10 @@ export default function FilterScreen() {
         <View style={styles.optionsWrap}>
           {[
             { key: "today", label: "Today" },
-            { key: "week", label: "Past week" },
-            { key: "month", label: "Past month" },
+            { key: "7d", label: "Last 7 days" },
+            { key: "week", label: "This week" },
+            { key: "30d", label: "Last 30 days" },
+            { key: "month", label: "This month" },
             { key: "custom", label: "Custom" },
           ].map((option) => {
             const isSelected = preset === option.key;

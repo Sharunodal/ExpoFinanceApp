@@ -22,6 +22,7 @@ export type AppDbState = {
   currencies: CurrencyDefinition[];
   settings: {
     defaultCurrency: AppCurrency;
+    encryptionEnabled: boolean;
   };
   categories: string[];
   tags: string[];
@@ -35,6 +36,7 @@ export function getDefaultState(): AppDbState {
     currencies: [...DEFAULT_CURRENCIES],
     settings: {
       defaultCurrency: DEFAULT_APP_CURRENCY,
+      encryptionEnabled: false,
     },
     categories: [...DEFAULT_CATEGORIES],
     tags: [...DEFAULT_TAGS],
@@ -128,6 +130,9 @@ export function normalizeState(state?: Partial<AppDbState>): AppDbState {
       defaultCurrency: availableCurrencyCodes.has(defaultCurrency)
         ? defaultCurrency
         : currencies[0]?.code ?? DEFAULT_APP_CURRENCY,
+      encryptionEnabled: typeof state?.settings?.encryptionEnabled === "boolean"
+        ? state.settings.encryptionEnabled
+        : false,
     },
     categories:
       Array.isArray(state?.categories) && state.categories.length > 0

@@ -567,3 +567,17 @@ export async function unlockLocalSecurity() {
 export async function resetLocalSecurity() {
   return;
 }
+
+export async function enableEncryption() {
+  // Native encryption is always enabled
+  return;
+}
+
+export async function disableEncryption() {
+  // Native encryption cannot be disabled
+  return;
+}
+
+export async function getEncryptionEnabled(): Promise<boolean> {
+  return true; // Native always has encryption enabled
+}

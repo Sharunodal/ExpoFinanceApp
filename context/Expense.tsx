@@ -36,6 +36,9 @@ import {
   getLocalSecurityState,
   resetLocalSecurity,
   unlockLocalSecurity,
+  enableEncryption,
+  disableEncryption,
+  getEncryptionEnabled,
   updateExpense as updateExpenseInDb,
   setDefaultCurrency as setDefaultCurrencyInDb,
   upsertBudgetForMonth,
@@ -54,6 +57,7 @@ interface ExpenseContextValue {
   currencies: CurrencyDefinition[];
   categories: string[];
   tags: string[];
+  encryptionEnabled: boolean;
   setDefaultCurrency: (currency: AppCurrency) => Promise<void>;
   addCurrency: (currency: CurrencyDefinition) => Promise<void>;
   deleteCurrency: (currency: AppCurrency) => Promise<void>;
@@ -62,6 +66,8 @@ interface ExpenseContextValue {
   deleteExpense: (id: string) => Promise<void>;
   reloadExpenses: () => Promise<void>;
   resetLocalData: () => Promise<void>;
+  enableEncryption: (passphrase: string) => Promise<void>;
+  disableEncryption: () => Promise<void>;
   saveBudgetForMonth: (
     month: string,
     amount: number,
@@ -115,6 +121,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   const [currencies, setCurrencies] = useState<CurrencyDefinition[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
+  const [encryptionEnabled, setEncryptionEnabled] = useState(false);
   const [securityPhase, setSecurityPhase] = useState<SecurityPhase>("checking");
   const [passphraseInput, setPassphraseInput] = useState("");
   const [securityError, setSecurityError] = useState("");
@@ -245,7 +252,12 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
 
     async function setup() {
       try {
-        const security = await getLocalSecurityState();
+        const [security, encryptionEnabled] = await Promise.all([
+          getLocalSecurityState(),
+          getEncryptionEnabled(),
+        ]);
+
+        setEncryptionEnabled(encryptionEnabled);
 
         if (security.phase !== "ready") {
           setSecurityPhase(security.phase);
@@ -370,16 +382,30 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   const resetLocalData = useCallback(async () => {
     await resetLocalDataInDb();
 
-    const [storedDefaultCurrency] = await Promise.all([
+    const [storedDefaultCurrency, storedEncryptionEnabled] = await Promise.all([
       getDefaultCurrency(),
+      getEncryptionEnabled(),
       reloadExpenses(),
       reloadLookups(),
       loadMonthData(getCurrentMonthKey()),
     ]);
 
     setDefaultCurrencyState(storedDefaultCurrency);
+    setEncryptionEnabled(storedEncryptionEnabled);
     setSelectedMonth(getCurrentMonthKey());
   }, [reloadExpenses, reloadLookups, loadMonthData]);
+
+  const handleEnableEncryption = useCallback(async (passphrase: string) => {
+    await enableEncryption(passphrase);
+    setEncryptionEnabled(true);
+    setSecurityPhase("ready");
+  }, []);
+
+  const handleDisableEncryption = useCallback(async () => {
+    await disableEncryption();
+    setEncryptionEnabled(false);
+    setSecurityPhase("ready");
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -393,6 +419,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       currencies,
       categories,
       tags,
+      encryptionEnabled,
       setDefaultCurrency,
       addCurrency,
       deleteCurrency,
@@ -410,6 +437,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       goToPreviousMonth,
       goToNextMonth,
       setSelectedMonth,
+      enableEncryption: handleEnableEncryption,
+      disableEncryption: handleDisableEncryption,
     }),
     [
       expenses,
@@ -422,6 +451,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       currencies,
       categories,
       tags,
+      encryptionEnabled,
       setDefaultCurrency,
       addCurrency,
       deleteCurrency,
@@ -439,6 +469,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       goToPreviousMonth,
       goToNextMonth,
       setSelectedMonth,
+      handleEnableEncryption,
+      handleDisableEncryption,
     ]
   );
 
