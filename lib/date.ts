@@ -34,8 +34,19 @@ export function parseYmdToDate(value: string) {
   return new Date(year, month - 1, day);
 }
 
-export function getPastDateString(daysBack: number) {
-  const date = new Date();
-  date.setDate(date.getDate() - daysBack);
-  return formatDateToYmd(date);
+export function getStartOfCurrentWeekDateString() {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // Sunday = 0
+  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - daysSinceMonday);
+
+  return formatDateToYmd(monday);
+}
+
+export function getStartOfCurrentMonthDateString() {
+  const today = new Date();
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  return formatDateToYmd(startOfMonth);
 }

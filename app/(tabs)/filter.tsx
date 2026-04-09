@@ -19,14 +19,15 @@ import {
   ExpenseTag,
 } from "../../types/finance";
 import {
-  getPastDateString,
   getTodayDateString,
+  getStartOfCurrentWeekDateString,
+  getStartOfCurrentMonthDateString,
   isValidYmdDate,
 } from "../../lib/date";
 import { getTotalsByCurrency } from "../../lib/conversion";
 import DateInputRow from "../../components/DateInput";
 
-type FilterPreset = "1d" | "7d" | "30d" | "custom";
+type FilterPreset = "today" | "week" | "month" | "custom";
 
 type CategoryGroup = {
   category: ExpenseCategory;
@@ -41,14 +42,14 @@ function normalizeDate(date: string) {
 function getPresetRange(preset: FilterPreset) {
   const today = getTodayDateString();
 
-  if (preset === "1d") {
-    return { from: getPastDateString(1), to: today };
+  if (preset === "today") {
+    return { from: today, to: today };
   }
-  if (preset === "7d") {
-    return { from: getPastDateString(7), to: today };
+  if (preset === "week") {
+    return { from: getStartOfCurrentWeekDateString(), to: today };
   }
-  if (preset === "30d") {
-    return { from: getPastDateString(30), to: today };
+  if (preset === "month") {
+    return { from: getStartOfCurrentMonthDateString(), to: today };
   }
 
   return { from: "", to: "" };
@@ -57,7 +58,7 @@ function getPresetRange(preset: FilterPreset) {
 export default function FilterScreen() {
   const { expenses, categories, tags, currencies } = useExpenses();
 
-  const [preset, setPreset] = useState<FilterPreset>("7d");
+  const [preset, setPreset] = useState<FilterPreset>("today");
   const presetRange = getPresetRange(preset);
 
   const [customFrom, setCustomFrom] = useState("");
@@ -103,7 +104,7 @@ export default function FilterScreen() {
   }
 
   function clearFilters() {
-    setPreset("7d");
+    setPreset("today");
     setCustomFrom("");
     setCustomTo(getTodayDateString());
     setSelectedCurrencies([]);
@@ -192,9 +193,9 @@ export default function FilterScreen() {
 
         <View style={styles.optionsWrap}>
           {[
-            { key: "1d", label: "Past day" },
-            { key: "7d", label: "Past 7 days" },
-            { key: "30d", label: "Past 30 days" },
+            { key: "today", label: "Today" },
+            { key: "week", label: "Past week" },
+            { key: "month", label: "Past month" },
             { key: "custom", label: "Custom" },
           ].map((option) => {
             const isSelected = preset === option.key;
