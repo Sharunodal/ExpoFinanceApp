@@ -142,6 +142,7 @@ export default function AddExpenseScreen() {
           placeholderTextColor="#888"
           keyboardType="decimal-pad"
           style={styles.input}
+          autoFocus={!isEditMode && !isMissingEditTarget}
         />
       </View>
 
